@@ -1,19 +1,23 @@
 name: Build Firmware
-on: [push]
+on: push
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Setup PlatformIO
-        uses: platformio/action@v2
-      - name: Build
+        uses: platformio/setup-platformio@v5
+        with:
+          platformio-version: latest
+
+      - name: Build project
         run: pio run
-      - name: Upload bin
+
+      - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
           name: firmware-bin
-          path: |
-            .pio/build/esp32c3dev/bootloader.bin
-            .pio/build/esp32c3dev/partitions.bin
-            .pio/build/esp32c3dev/firmware.bin
+          path: .pio/build/esp32c3/firmware.bin
