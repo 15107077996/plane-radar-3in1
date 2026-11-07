@@ -824,7 +824,7 @@ static void handleRoot() {
   String html =
       "<html><head><meta charset='utf-8'><meta name='viewport' "
       "content='width=device-width,initial-scale=1'></head><body "
-      "style='font-family:sans-serif;background:#111;color:#eee;padding:18px'"
+      "style='font-family:sans-serif;background:#111;color:#eee;padding:18px'>"
       "<h3>PlaneRadar 3in1 SETUP</h3><form method='POST' action='/save'>"
       "WIFI SSID (2.4G only)<br><input name='ssid' style='width:100%;padding:8px'><br><br>"
       "WIFI PASSWORD<br><input name='pass' type='password' style='width:100%;padding:8px'><br><br>"
@@ -855,7 +855,7 @@ static void startPortal() {
   server.on("/", handleRoot);
   server.on("/save", HTTP_POST, handleSave);
   server.begin();
-  Serial.printf("[wifi] portal AP=%s ip=%s\n", AP_NAME, WiFi.softAPip().toString().c_str());
+  Serial.printf("[wifi] portal AP=%s ip=%s\n", AP_NAME, WiFi.softAPIP().toString().c_str());
 
   gfx->fillScreen(C_BLACK);
   textC("WIFI SETUP", 60, C_CYAN, 2);
@@ -876,7 +876,7 @@ static bool connectWifi() {
   for (int i = 0; i < found; i++) {
     Serial.printf("[wifi]   %-20s rssi=%d ch=%d\n", WiFi.SSID(i).c_str(), WiFi.RSSI(i),
                   WiFi.channel(i));
-    if (WiFi.SSID(i) == s_ssid) hits++;
+    http.end();
   }
   WiFi.scanDelete();
   if (hits == 0) Serial.printf("[wifi] target '%s' NOT in scan (2.4G band off or hidden)\n",
@@ -892,7 +892,7 @@ static bool connectWifi() {
                     WiFi.RSSI());
       return true;
     }
-    Serial.printf("[wifi] attempt %d failed, status=%d\n", attempt, (int)WiFi.status());
+    Serial.printf("[wifi] attempt %d failed, status=%d\n", (int)WiFi.status());
     WiFi.disconnect(true);
     delay(1000);
   }
