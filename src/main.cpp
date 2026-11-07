@@ -1000,7 +1000,7 @@ static void fetchPlanes() {
   if (code != HTTP_CODE_OK) {
     http.end();
     s_adsbMsg = "HTTP" + String(code);
-    return false;
+    return;
   }
 
   // Full body is small (~15 KB here) and heap is ample; a buffered parse is
