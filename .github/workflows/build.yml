@@ -1,24 +1,50 @@
 name: Build Firmware
-on: push
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Setup PlatformIO
+        uses: platformio/setup-platformio@v5
         with:
-          python-version: '3.11'
+          platformio-version: latest
 
-      - name: Install PlatformIO
-        run: pip install -U platformio
+      - name: Build project
+        run: |
+          set -o pipefail
+          pio run 2>&1 | tee build.log
 
-      - name: Build
-        run: pio run
-
-      - name: Upload firmware
+      - name: Upload firmware artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: firmware-bin
-          path: .pio/build/*/*.bin
+          path: .pio/build/esp32c3/firmware.bin
+
+      - name: Publish firmware to release
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete fw-latest --yes --cleanup-tag || true
+          gh release create fw-latest .pio/build/esp32c3/firmware.bin \
+            --title "firmware latest" --notes "auto build from ${{ github.sha }}"
+
+      - name: Publish build log on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete build-log --yes --cleanup-tag || true
+          gh release create build-log build.log \
+            --title "build log (failed)" --notes "failed build of ${{ github.sha }}"
