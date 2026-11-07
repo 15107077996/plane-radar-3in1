@@ -81,7 +81,7 @@
 
 // ------------------------------------------------------------------ config --
 #define FW_NAME "PlaneRadar 3in1"
-#define FW_VER  "1.0.5-c3"
+#define FW_VER  "1.0.6-c3"
 #define AP_NAME "PlaneRadar-Setup"
 #define NTP1    "ntp.aliyun.com"
 #define NTP2    "cn.pool.ntp.org"
@@ -199,8 +199,8 @@ static void drawRings() {
 
   gfx->drawLine(R_CX, R_CY - R_R, R_CX, R_CY - R_R + 8, C_GREEN);
   gfx->drawLine(R_CX, R_CY + R_R - 8, R_CX, R_CY + R_R, C_GREEN);
-  gfx->drawLine(R_CX - R_R, R_CY, R_CX - R_R + 8, R_CY, C_GREEN);
-  gfx->drawLine(R_CX + R_R - 8, R_CY, R_CX + R_R, R_CY, C_GREEN);
+  gfx->drawLine(R_CX - R_R, R_CX - R_R + 8, R_CY, C_GREEN);
+  gfx->drawLine(R_CX + R_R - 8, R_CY, R_CX + R_R, C_GREEN);
 
   char b[16];
   snprintf(b, sizeof(b), "%dKM", (int)RANGES_KM[s_range]);
@@ -339,7 +339,7 @@ static void drawChinaFaint() {
   }
   int lx = (int)(CN_OX + (s_lon - CN_LON_MIN) * CN_KX);
   int ly = (int)(CN_OY + (CN_LAT_MAX - s_lat) * CN_KY);
-  if (lx > 0 && lx < LCD_W && ly > 0 && ly < LCD_H) {
+  if (lx > 0 && lx < LCD_W && ly > 0 && ly < LCD_W) {
     gfx->fillCircle(lx, ly, 3, C_RED);
     gfx->drawCircle(lx, ly, 6, C_DKRED);
   }
@@ -416,6 +416,14 @@ static const char *WX_TILE_HOST = "http://tilecache.rainviewer.com";
 
 // one decoded PNG row -> panel, clipped to the round dial
 static void pngRow(PNGDRAW *pDraw) {
+  static int s_rowLog = 0;
+  bool doLog = (pDraw->y == 0 || pDraw->y == 1 || pDraw->y == 63 || pDraw->y == 127 ||
+                pDraw->y == 191 || pDraw->y == 255);
+  if (doLog) {
+    Serial.printf("[wx] row y=%d w=%d type=%d enter\n", pDraw->y, pDraw->iWidth,
+                  pDraw->iPixelType);
+    Serial.flush();
+  }
   int ty = pDraw->y + s_tileDy;
   if (ty < 0 || ty >= LCD_H) return;
   int iPixelType = pDraw->iPixelType;
@@ -457,6 +465,11 @@ static void pngRow(PNGDRAW *pDraw) {
     if (!transparent && !s_wxDry) gfx->drawPixel(tx, ty, col);
   }
   gfx->endWrite();
+  if (doLog) {
+    Serial.printf("[wx] row y=%d exit\n", pDraw->y);
+    Serial.flush();
+    s_rowLog++;
+  }
 }
 
 static void allocPngBuffer() {
@@ -581,14 +594,23 @@ static bool fetchWeather() {
   }
   Serial.printf("[wx] tile %d bytes z%d %d/%d\n", got, WX_ZOOM, tx, ty);
 
+  Serial.printf("[wx] before openRAM got=%d cap=%d heap=%u\n", got, s_pngCap,
+                (unsigned)ESP.getFreeHeap());
+  Serial.flush();
   int rc = s_png.openRAM(s_pngData, got, (PNG_DRAW_CALLBACK *)pngRow);
+  Serial.printf("[wx] openRAM rc=%d w=%d h=%d type=%d bpp=%d pitch=%d\n", rc, s_png.getWidth(),
+                s_png.getHeight(), s_png.getPixelType(), s_png.getBpp(), s_png.getBufferSize());
+  Serial.flush();
   if (rc != PNG_SUCCESS) {
     s_wxMsg = "OPEN" + String(rc);
     Serial.printf("[wx] png open rc=%d\n", rc);
     return false;
   }
+  Serial.println("[wx] before decode"); Serial.flush();
   rc = s_png.decode(NULL, 0);
+  Serial.printf("[wx] after decode rc=%d\n", rc); Serial.flush();
   s_png.close();
+  Serial.println("[wx] png closed"); Serial.flush();
   if (rc != PNG_SUCCESS) {
     s_wxMsg = "DEC" + String(rc);
     Serial.printf("[wx] png decode rc=%d\n", rc);
@@ -711,7 +733,7 @@ static void startPortal() {
   WiFi.softAP(AP_NAME);
   server.on("/", handleRoot);
   server.on("/save", HTTP_POST, handleSave);
-  server.begin();
+  begin();
   Serial.printf("[wifi] portal AP=%s ip=%s\n", AP_NAME, WiFi.softAPIP().toString().c_str());
 
   gfx->fillScreen(C_BLACK);
@@ -748,14 +770,15 @@ static bool connectWifi() {
     if (WiFi.status() == WL_CONNECTED) {
       Serial.printf("[wifi] connected ip=%s rssi=%d\n", WiFi.localIP().toString().c_str(),
                     WiFi.RSSI());
-      return true;
     }
-    Serial.printf("[wifi] attempt %d failed, status=%d\n", attempt, (int)WiFi.status());
-    Serial.flush();
-    WiFi.disconnect(true);
-    delay(1000);
+    return true;
   }
-  return false;
+  Serial.printf("[wifi] attempt %d failed, status=%d\n", attempt, (int)WiFi.status());
+  Serial.flush();
+  WiFi.disconnect(true);
+  delay(1000);
+}
+return false;
 }
 
 // --------------------------------------------------------------- adsb fetch --
@@ -799,8 +822,9 @@ static void fetchPlanes() {
   if (code != HTTP_CODE_OK) {
     http.end();
     s_adsbMsg = "HTTP" + String(code);
-    return;
   }
+  return;
+}
 
   JsonDocument filter;
   filter["ac"][0]["lat"] = true;
@@ -906,7 +930,7 @@ void setup() {
   Serial.flush();
 
   textC(FW_NAME, 100, C_CYAN, 1);
-  textC(FW_VER, 116, C_GRAY, 1);
+  textC(FW_VER, 100, C_CYAN, 1);
   textC("BOOTING", 134, C_GREEN, 1);
 
   allocPngBuffer();
@@ -978,8 +1002,8 @@ void loop() {
   if (millis() - lastHb > 10000UL) {
     lastHb = millis();
     Serial.printf("[hb] up=%lus screen=%d range=%dkm planes=%d wx=%s heap=%u wifi=%d\n",
-                  millis() / 1000UL, s_screen, (int)RANGES_KM[s_range], s_plN,
-                  s_wxMsg.c_str(), (unsigned)ESP.getFreeHeap(), (int)WiFi.status());
+                  millis() / 1000UL, s_screen, range=%dkm planes=%d wx=%s heap=%u wifi=%d\n",
+                  millis() / 1000UL, s_screen, s_range, s_plN, s_wxMsg.c_str(), (unsigned)ESP.getFreeHeap(), (int)WiFi.status());
     Serial.flush();
   }
 
@@ -989,7 +1013,7 @@ void loop() {
     return;
   }
 
-  // one-shot rain check, 20 s after boot, never in the setup path
+  // one-shot rain check, 20 s after boot, 20 s after boot, never in the setup path
   if (!s_wxProbeDone && millis() > 20000UL) {
     s_wxProbeDone = true;
     Serial.println("[wxprobe] checking rainviewer tile"); Serial.flush();
