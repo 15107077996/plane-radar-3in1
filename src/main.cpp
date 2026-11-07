@@ -74,11 +74,11 @@
 #define R_CY  (LCD_H / 2)
 #define R_R   112
 
-#define SPI_HZ 40000000
+#define SPI_HZ 27000000     // 27 MHz: safe on dupont wires, still no visible lag
 
 // ------------------------------------------------------------------ config --
 #define FW_NAME "PlaneRadar 3in1"
-#define FW_VER  "1.0.2-c3"
+#define FW_VER  "1.0.3-c3"
 #define AP_NAME "PlaneRadar-Setup"
 #define NTP1    "ntp.aliyun.com"
 #define NTP2    "cn.pool.ntp.org"
@@ -685,10 +685,39 @@ static void startPortal() {
 static bool connectWifi() {
   if (s_ssid.length() == 0) return false;
   WiFi.mode(WIFI_STA);
-  WiFi.begin(s_ssid.c_str(), s_pass.c_str());
-  unsigned long t0 = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - t0 < 15000) delay(200);
-  return WiFi.status() == WL_CONNECTED;
+  WiFi.disconnect(true);
+  delay(200);
+
+  // log what the chip itself can see (2.4 GHz only) - proves the SSID exists
+  int found = WiFi.scanNetworks();
+  Serial.printf("[wifi] scan found %d networks\n", found);
+  int hits = 0;
+  for (int i = 0; i < found; i++) {
+    Serial.printf("[wifi]   %-20s rssi=%d ch=%d\n", WiFi.SSID(i).c_str(), WiFi.RSSI(i),
+                  WiFi.channel(i));
+    if (WiFi.SSID(i) == s_ssid) hits++;
+  }
+  WiFi.scanDelete();
+  if (hits == 0) Serial.printf("[wifi] target '%s' NOT in scan (2.4G band off or hidden)\n",
+                               s_ssid.c_str());
+
+  for (int attempt = 1; attempt <= 3; attempt++) {
+    Serial.printf("[wifi] connect attempt %d to '%s'\n", attempt, s_ssid.c_str());
+    Serial.flush();
+    WiFi.begin(s_ssid.c_str(), s_pass.c_str());
+    unsigned long t0 = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - t0 < 12000) delay(200);
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.printf("[wifi] connected ip=%s rssi=%d\n", WiFi.localIP().toString().c_str(),
+                    WiFi.RSSI());
+      return true;
+    }
+    Serial.printf("[wifi] attempt %d failed, status=%d\n", attempt, (int)WiFi.status());
+    Serial.flush();
+    WiFi.disconnect(true);
+    delay(1000);
+  }
+  return false;
 }
 
 // --------------------------------------------------------------- adsb fetch --
@@ -804,7 +833,7 @@ static bool initDisplay() {
   Serial.println("[lcd] step1: create SPI bus"); Serial.flush();
   s_bus = new Arduino_ESP32SPI(PIN_DC, PIN_CS, PIN_SCLK, PIN_MOSI);
   Serial.println("[lcd] step2: create GC9A01 panel"); Serial.flush();
-  Arduino_GC9A01 *panel = new Arduino_GC9A01(s_bus, PIN_RST, 0, true);
+  Arduino_GC9A01 *panel = new Arduino_GC9A01(s_bus, PIN_RST, 0, false);
   gfx = panel;
   Serial.println("[lcd] step3: gfx->begin()"); Serial.flush();
   bool ok = gfx->begin(SPI_HZ);
@@ -870,6 +899,15 @@ void setup() {
 
   s_screen = SCR_PLANES;
   enterPlanes();
+#ifdef PR_SELFTEST
+  // page walk: draw each page once and log draw time, so a blank/broken page
+  // shows up in the log even without someone pressing the key
+  unsigned long t;
+  t = millis(); renderClock();  Serial.printf("[self] clock page %lu ms\n", millis() - t); Serial.flush(); delay(2000);
+  t = millis(); enterWeather(); Serial.printf("[self] rain page %lu ms, msg=%s\n", millis() - t, s_wxMsg.c_str()); Serial.flush(); delay(2000);
+  t = millis(); s_screen = SCR_PLANES; enterPlanes();
+  Serial.printf("[self] plane page %lu ms\n", millis() - t); Serial.flush(); delay(2000);
+#endif
   Serial.println("[boot] setup done"); Serial.flush();
 }
 
@@ -918,6 +956,22 @@ void loop() {
   }
 
   handleButton();
+
+#ifdef PR_SELFTEST
+  // rotate screens automatically so all three pages are exercised unattended
+  static unsigned long lastCycle = 0;
+  if (millis() - lastCycle > 20000UL) {
+    lastCycle = millis();
+    s_screen = (s_screen + 1) % 3;
+    unsigned long t = millis();
+    if (s_screen == SCR_PLANES) enterPlanes();
+    else if (s_screen == SCR_WEATHER) enterWeather();
+    else renderClock();
+    Serial.printf("[self] auto screen=%d %lu ms heap=%u\n", s_screen, millis() - t,
+                  (unsigned)ESP.getFreeHeap());
+    Serial.flush();
+  }
+#endif
 
   unsigned long now = millis();
 
