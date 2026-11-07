@@ -81,7 +81,7 @@
 
 // ------------------------------------------------------------------ config --
 #define FW_NAME "PlaneRadar 3in1"
-#define FW_VER  "1.0.7-c3"
+#define FW_VER  "1.0.8-c3"
 #define AP_NAME "PlaneRadar-Setup"
 #define NTP1    "ntp.aliyun.com"
 #define NTP2    "cn.pool.ntp.org"
@@ -253,7 +253,7 @@ static void drawPlaneIcons() {
 }
 
 static void drawPlaneLabels() {
-  float scale = (float)R_R / RANGES_KM[s_range];
+  float scale = (float)R_R / RANGES_KM;
   int labelled = 0;
   for (int i = 0; i < s_plN && labelled < 5; i++) {
     if (!s_pl[i].cs[0]) continue;
@@ -280,7 +280,7 @@ static void drawPlaneFooter() {
 
   if (s_plN > 0) {
     int best = 0;
-    for (int i = 1; i < s_plN; i++) if (s_pl[i].dist < s_pl[best].dist) best = i;
+    for (int i = 1; i < s_plN; i++) if (s_pl[i].dist < s_pl[best]) best = i;
     char d[40];
     snprintf(d, sizeof(d), "%s %dm %dkmh", s_pl[best].cs,
              (int)(s_pl[best].altFt * 0.3048f),
@@ -704,7 +704,7 @@ static void loadCfg() {
 
 static void handleRoot() {
   String html =
-      "<html><head><meta charset='utf-8'><meta name=viewport "
+      "<html><head><meta charset='utf-8'><meta name='viewport' "
       "content='width=device-width,initial-scale=1'></head><body "
       "style='font-family:sans-serif;background:#111;color:#eee;padding:18px'>"
       "<h3>PlaneRadar 3in1 SETUP</h3><form method='POST' action='/save'>"
@@ -721,7 +721,7 @@ static void handleSave() {
   if (server.hasArg("ssid")) s_ssid = server.arg("ssid");
   if (server.hasArg("pass")) s_pass = server.arg("pass");
   if (server.hasArg("lat"))  s_lat = server.arg("lat").toFloat();
-  if (server.hasArg("lon"))  s_lon = server.arg("lon").toFloat();
+  if (server.hasArg("lon")) s_lon = server.arg("lon").toFloat();
   saveCfg();
   server.send(200, "text/html; charset=utf-8",
               "<meta charset='utf-8'><body style='background:#111;color:#0f0;"
@@ -791,8 +791,8 @@ static void addPlane(const Plane &q) {
     s_pl[s_plN++] = q;
   } else {                            // keep the nearest MAX_PLANES only
     int worst = 0;
-    for (int i = 1; i < s_plN; i++) if (s_pl[i].dist > s_pl[worst].dist) worst = i;
-    if (q.dist < s_pl[worst].dist) s_pl[worst] = q;
+    for (int i = 1; i < s_plN; i++) if (s_pl[i].dist > s_pl[worst]) worst = i;
+    if (q.dist < s_pl[worst]) s_pl[worst] = q;
   }
 }
 
@@ -914,11 +914,14 @@ static void enterPlanes() {
 // High-priority diagnostic task: even if loopTask is stuck in a tight spin,
 // this preempts it and prints, proving spin vs fault/deadlock.
 static void diagTask(void *) {
+  extern volatile uint32_t g_pngInner, g_pngOuter, g_pngInflateCalls;
   unsigned cnt = 0;
   for (;;) {
-    Serial.printf("[diag] n=%u heap=%u diagStackMin=%u\n", cnt++,
+    Serial.printf("[diag] n=%u heap=%u diagStackMin=%u pngIn=%lu pngOut=%lu infCalls=%lu\n", cnt++,
                   (unsigned)ESP.getFreeHeap(),
-                  (unsigned)uxTaskGetStackHighWaterMark(NULL));
+                  (unsigned)uxTaskGetStackHighWaterMark(NULL),
+                  (unsigned long)g_pngInner, (unsigned long)g_pngOuter,
+                  (unsigned long)g_pngInflateCalls);
     Serial.flush();
     vTaskDelay(pdMS_TO_TICKS(2000));
   }
@@ -968,7 +971,7 @@ void setup() {
 #ifdef PR_SELFTEST
   unsigned long t;
   t = millis(); renderClock();
-  Serial.printf("[self] clock page %lu ms\n", millis() - t); Serial.flush();
+  Serial.printf("[self] rain page %lu ms\n", millis() - t); Serial.flush();
   delay(2000);
   drawRainSkeleton();
   textC("LOADING...", R_CY + 8, C_GRAY, 1);
