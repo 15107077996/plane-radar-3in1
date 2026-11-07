@@ -2,7 +2,7 @@
 //  PlaneRadar 3in1 - ESP32-C3 + GC9A01 240x240 SPI round panel
 //
 //  Screens : 0 = clock | 1 = aircraft radar (adsb.fi) | 2 = rain radar (RainViewer)
-//  Key     : GPIO9 (BOOT button) short press = next screen, long press = next range
+//  Key     : GPIO9 (BOOT button)  short press = next screen, hold 0.9 s = next range
 //
 //  FIXED WIRING (must not be changed):
 //    LCD VCC  = 3V3   LCD GND   = GND
@@ -17,10 +17,12 @@
 //     (only the beam and plane icons are repainted per frame) => no flicker.
 //   * Rain tiles are PNG-decoded line by line and clipped to the dial circle,
 //     so no 115KB overlay buffer is needed.
-//   * WiFi NKWRJ is built in; the AP "PlaneRadar-Setup" (http://192.168.4.1)
-//     is only started when joining that network fails.
-//   * Every network call is time-bounded (TLS handshake 6 s) so a slow/blocked
-//     host can never freeze the UI: the screen is painted before any request.
+//   * RainViewer is fetched over plain HTTP on purpose: it answers 200 on port
+//     80, so the weather path needs no TLS at all (no handshake stalls, ~45 KB
+//     heap saved). adsb.fi redirects to HTTPS, so only the plane query uses TLS
+//     and its handshake is capped at 6 s (WiFiClientSecure takes seconds).
+//   * Default centre is Guangzhou Baiyun airport for bench testing; the config
+//     portal can move it anywhere.
 // =============================================================================
 
 #include <Arduino.h>
@@ -41,8 +43,6 @@
 #include "ChinaMap.h"
 
 // ---------------------------------------------------------------- hardware --
-// Pin numbers come from platformio.ini (build_flags -D PR_xxx=...); the values
-// below are only fallbacks so the file still compiles in a bare sketch folder.
 #ifndef PR_SCLK
 #define PR_SCLK 4
 #endif
@@ -77,19 +77,23 @@
 #define R_R   112
 
 #define SPI_HZ 27000000     // 27 MHz: safe on dupont wires, still no visible lag
-#define TLS_HANDSHAKE_S 6   // cap TLS handshake, a stuck host must not freeze the UI
+#define TLS_HANDSHAKE_S 6   // seconds; a stuck host must not freeze the UI
 
 // ------------------------------------------------------------------ config --
 #define FW_NAME "PlaneRadar 3in1"
-#define FW_VER  "1.0.4-c3"
+#define FW_VER  "1.0.5-c3"
 #define AP_NAME "PlaneRadar-Setup"
 #define NTP1    "ntp.aliyun.com"
 #define NTP2    "cn.pool.ntp.org"
 
-// built-in WiFi, used when NVS has nothing saved yet (fresh chip) - the config
-// portal still works if joining this network fails
+// built-in WiFi, used when NVS has nothing saved yet (fresh chip)
 #define DEFAULT_SSID "NKWRJ"
 #define DEFAULT_PASS "15107077996h"
+
+// default position: Guangzhou Baiyun Intl (ZGGG)
+#define DEFAULT_LAT 23.3924f
+#define DEFAULT_LON 113.2988f
+#define CFG_VER 105        // bumping this re-seeds the stored lat/lon once
 
 static const float RANGES_KM[] = {25.0f, 50.0f, 100.0f, 200.0f};
 static const int   RANGE_N = sizeof(RANGES_KM) / sizeof(RANGES_KM[0]);
@@ -116,8 +120,8 @@ static Arduino_GFX     *gfx   = nullptr;
 
 static int      s_screen = SCR_PLANES;
 static int      s_range  = 3;              // index into RANGES_KM (200 km by default)
-static float    s_lat    = 25.6640f;       // Nankang, Ganzhou
-static float    s_lon    = 114.7530f;
+static float    s_lat    = DEFAULT_LAT;
+static float    s_lon    = DEFAULT_LON;
 static String   s_ssid, s_pass;
 
 static Preferences prefs;
@@ -145,6 +149,7 @@ static String   s_wxMsg   = "wait";
 static unsigned long s_wxStamp = 0;
 static int      s_tileDx = 0, s_tileDy = 0;
 static bool     s_wxDry  = false;      // true while self-testing, no pixels drawn
+static bool     s_wxNeed = false;      // page asks for a tile, loop() does the work
 static bool     s_wxProbeDone = false; // one-shot boot rain check (runs from loop)
 
 // radar beam
@@ -406,7 +411,8 @@ static void clockTick() {
 
 // ================================================================= weather ==
 #define WX_ZOOM 7
-static const char *WX_HOST = "api.rainviewer.com";
+static const char *WX_META_URL  = "http://api.rainviewer.com/public/weather-maps.json";
+static const char *WX_TILE_HOST = "http://tilecache.rainviewer.com";
 
 // one decoded PNG row -> panel, clipped to the round dial
 static void pngRow(PNGDRAW *pDraw) {
@@ -468,18 +474,21 @@ static void allocPngBuffer() {
   Serial.printf("[wx] png buffer alloc FAILED, free heap %u\n", (unsigned)ESP.getFreeHeap());
 }
 
+// plain HTTP on purpose: no TLS state, ~45 KB heap saved
 static bool httpGetToBuffer(const char *url, uint8_t *buf, int cap, int *got) {
   *got = 0;
-  WiFiClientSecure c;
-  c.setInsecure();
-  c.setHandshakeTimeout(TLS_HANDSHAKE_S);
+  WiFiClient c;
   HTTPClient http;
-  http.setConnectTimeout(TLS_HANDSHAKE_S * 1000);
+  http.setConnectTimeout(6000);
   http.setTimeout(15000);
   if (!http.begin(c, String(url))) return false;
   http.addHeader("User-Agent", "PlaneRadar3in1/1.0");
   int code = http.GET();
-  if (code != HTTP_CODE_OK) { http.end(); return false; }
+  if (code != HTTP_CODE_OK) {
+    Serial.printf("[wx] tile http %d\n", code);
+    http.end();
+    return false;
+  }
   WiFiClient *s = http.getStreamPtr();
   int total = http.getSize();
   int n = 0;
@@ -508,25 +517,20 @@ static bool httpGetToBuffer(const char *url, uint8_t *buf, int cap, int *got) {
 static bool fetchWeather() {
   s_wxOk = false;
 
-  // 0) DNS: log the resolved IPv4 so a DNS failure is visible in the log
   IPAddress ip;
-  Serial.printf("[wx] dns %s ... ", WX_HOST); Serial.flush();
-  if (!WiFi.hostByName(WX_HOST, ip)) {
+  Serial.print("[wx] dns api.rainviewer.com ... "); Serial.flush();
+  if (!WiFi.hostByName("api.rainviewer.com", ip)) {
     s_wxMsg = "DNS";
     Serial.println("FAIL"); Serial.flush();
     return false;
   }
   Serial.println(ip.toString().c_str()); Serial.flush();
 
-  // 1) metadata
-  WiFiClientSecure c;
-  c.setInsecure();
-  c.setHandshakeTimeout(TLS_HANDSHAKE_S);
+  WiFiClient c;
   HTTPClient http;
-  http.setConnectTimeout(TLS_HANDSHAKE_S * 1000);
+  http.setConnectTimeout(6000);
   http.setTimeout(12000);
-  String meta = "https://" + String(WX_HOST) + "/public/weather-maps.json";
-  if (!http.begin(c, meta)) { s_wxMsg = "BEGIN"; return false; }
+  if (!http.begin(c, String(WX_META_URL))) { s_wxMsg = "BEGIN"; return false; }
   Serial.println("[wx] meta GET"); Serial.flush();
   int code = http.GET();
   Serial.printf("[wx] meta http %d\n", code); Serial.flush();
@@ -542,7 +546,6 @@ static bool fetchWeather() {
   JsonDocument doc;
   if (deserializeJson(doc, body)) { s_wxMsg = "JSON"; return false; }
 
-  String host = doc["host"] | "https://tilecache.rainviewer.com";
   JsonArray past = doc["radar"]["past"].as<JsonArray>();
   if (past.size() == 0) { s_wxMsg = "NOFRAME"; return false; }
   JsonObject fr = past[past.size() - 1];
@@ -550,7 +553,6 @@ static bool fetchWeather() {
   String ts = fr["time"] | "";
   if (path.length() == 0) { s_wxMsg = "NOPATH"; return false; }
 
-  // 2) tile index for our position
   int n = 1 << WX_ZOOM;
   double latr = s_lat * 0.0174532925;
   double xf = (s_lon + 180.0) / 360.0 * n * 256.0;
@@ -561,11 +563,10 @@ static bool fetchWeather() {
   s_tileDy = R_CY - (int)(yf - ty * 256.0);
 
   char url[192];
-  snprintf(url, sizeof(url), "%s%s/256/%d/%d/%d/2/1_1.png", host.c_str(), path.c_str(),
+  snprintf(url, sizeof(url), "%s%s/256/%d/%d/%d/2/1_1.png", WX_TILE_HOST, path.c_str(),
            WX_ZOOM, tx, ty);
   Serial.println(url); Serial.flush();
 
-  // 3) download + decode
   if (!s_pngData) { s_wxMsg = "NOMEM"; return false; }
   int got = 0;
   if (!httpGetToBuffer(url, s_pngData, s_pngCap, &got)) {
@@ -583,46 +584,53 @@ static bool fetchWeather() {
   int rc = s_png.openRAM(s_pngData, got, (PNG_DRAW_CALLBACK *)pngRow);
   if (rc != PNG_SUCCESS) {
     s_wxMsg = "OPEN" + String(rc);
+    Serial.printf("[wx] png open rc=%d\n", rc);
     return false;
   }
   rc = s_png.decode(NULL, 0);
   s_png.close();
   if (rc != PNG_SUCCESS) {
     s_wxMsg = "DEC" + String(rc);
+    Serial.printf("[wx] png decode rc=%d\n", rc);
     return false;
   }
 
   s_wxOk = true;
   s_wxMsg = ts;
-  s_wxStamp = millis();
   return true;
 }
 
-static void renderWeatherOverlay() {
+static void drawRainSkeleton() {
+  gfx->fillScreen(C_BLACK);
   gfx->drawCircle(R_CX, R_CY, R_R, 0x0320);
   gfx->drawCircle(R_CX, R_CY, R_R / 2, 0x0200);
-  gfx->drawCircle(R_CX, R_CY, 3, C_WHITE);
-
-  gfx->fillRect(0, 0, LCD_W, 44, C_BLACK);
+  gfx->fillCircle(R_CX, R_CY, 3, C_WHITE);
   textC("RAIN RADAR", 8, C_CYAN, 1);
-  char b[24];
-  snprintf(b, sizeof(b), "Z%d  %s", WX_ZOOM, s_wxMsg.c_str());
-  textC(b, 24, C_GRAY, 1);
+}
+
+static void drawRainFrame() {
+  gfx->drawCircle(R_CX, R_CY, R_R, 0x0320);
+  gfx->drawCircle(R_CX, R_CY, R_R / 2, 0x0200);
+  gfx->fillCircle(R_CX, R_CY, 3, C_WHITE);
+  gfx->fillRect(0, 0, LCD_W, 34, C_BLACK);
+  textC("RAIN RADAR", 8, C_CYAN, 1);
+  char b[26];
+  snprintf(b, sizeof(b), "Z%d %s", WX_ZOOM, s_wxMsg.c_str());
+  textC(b, 22, C_GRAY, 1);
+}
+
+static void drawRainFail() {
+  drawRainSkeleton();
+  char b[26];
+  snprintf(b, sizeof(b), "FAIL %s", s_wxMsg.c_str());
+  textC(b, R_CY + 8, C_RED, 1);
+  textC("KEY=NEXT", R_CY + 30, C_GRAY, 1);
 }
 
 static void enterWeather() {
-  gfx->fillScreen(C_BLACK);
-  textC("RAIN LOADING", R_CY - 8, C_GRAY, 1);
-  if (!fetchWeather()) {
-    gfx->fillScreen(C_BLACK);
-    textC("RAIN RADAR", 40, C_CYAN, 1);
-    char b[24];
-    snprintf(b, sizeof(b), "FAIL %s", s_wxMsg.c_str());
-    textC(b, R_CY - 8, C_RED, 1);
-    textC("KEY=NEXT", R_CY + 26, C_GRAY, 1);
-    return;
-  }
-  renderWeatherOverlay();
+  s_wxNeed = true;              // loop() performs the download, UI is never blocked
+  drawRainSkeleton();
+  textC("LOADING...", R_CY + 8, C_GRAY, 1);
 }
 
 // ------------------------------------------------------------------ network --
@@ -635,6 +643,7 @@ static void saveCfg() {
   prefs.putString("pass", s_pass);
   prefs.putFloat("lat", s_lat);
   prefs.putFloat("lon", s_lon);
+  prefs.putInt("ver", CFG_VER);
   prefs.end();
 }
 
@@ -644,16 +653,28 @@ static void loadCfg() {
     prefs.end();
     s_ssid = DEFAULT_SSID;
     s_pass = DEFAULT_PASS;
-    saveCfg();                     // write the keys now so later reads never log NOT_FOUND
-    Serial.printf("[cfg] nvs empty, seeded built-in wifi %s\n", DEFAULT_SSID);
+    s_lat = DEFAULT_LAT;
+    s_lon = DEFAULT_LON;
+    saveCfg();                     // write keys now, later reads never log NOT_FOUND
+    Serial.printf("[cfg] nvs empty, seeded %s at %.4f/%.4f\n", DEFAULT_SSID, DEFAULT_LAT,
+                  DEFAULT_LON);
     return;
   }
   s_ssid = prefs.getString("ssid", DEFAULT_SSID);
   s_pass = prefs.getString("pass", DEFAULT_PASS);
-  s_lat = prefs.getFloat("lat", s_lat);
-  s_lon = prefs.getFloat("lon", s_lon);
+  int ver = prefs.getInt("ver", 0);
+  if (ver < CFG_VER) {             // older layout: force the new bench-test centre
+    s_lat = DEFAULT_LAT;
+    s_lon = DEFAULT_LON;
+    Serial.println("[cfg] cfg version bumped, centre reset to Baiyun");
+  } else {
+    s_lat = prefs.getFloat("lat", DEFAULT_LAT);
+    s_lon = prefs.getFloat("lon", DEFAULT_LON);
+  }
   prefs.end();
-  Serial.printf("[cfg] nvs ssid='%s' lat=%.4f lon=%.4f\n", s_ssid.c_str(), s_lat, s_lon);
+  saveCfg();
+  Serial.printf("[cfg] nvs ssid='%s' lat=%.4f lon=%.4f ver=%d\n", s_ssid.c_str(), s_lat, s_lon,
+                CFG_VER);
 }
 
 static void handleRoot() {
@@ -667,7 +688,7 @@ static void handleRoot() {
       "LATITUDE<br><input name='lat' style='width:100%;padding:8px'><br><br>"
       "LONGITUDE<br><input name='lon' style='width:100%;padding:8px'><br><br>"
       "<button style='padding:12px 28px;font-size:16px'>SAVE + REBOOT</button></form>"
-      "<p style='color:#888'>default 25.6640 / 114.7530 (Nankang)</p></body></html>";
+      "<p style='color:#888'>default 23.3924 / 113.2988 (Baiyun)</p></body></html>";
   server.send(200, "text/html; charset=utf-8", html);
 }
 
@@ -706,7 +727,6 @@ static bool connectWifi() {
   WiFi.disconnect(true);
   delay(200);
 
-  // log what the chip itself can see (2.4 GHz only) - proves the SSID exists
   int found = WiFi.scanNetworks();
   Serial.printf("[wifi] scan found %d networks\n", found);
   int hits = 0;
@@ -775,10 +795,10 @@ static void fetchPlanes() {
   http.addHeader("User-Agent", "PlaneRadar3in1/1.0");
   http.addHeader("Accept", "application/json");
   int code = http.GET();
+  Serial.printf("[adsb] http %d\n", code); Serial.flush();
   if (code != HTTP_CODE_OK) {
     http.end();
     s_adsbMsg = "HTTP" + String(code);
-    Serial.printf("[adsb] http %d\n", code);
     return;
   }
 
@@ -875,7 +895,6 @@ void setup() {
                 PIN_MOSI, PIN_SCLK, PIN_CS, PIN_DC, PIN_RST, PIN_BTN);
   Serial.flush();
 
-  // no backlight pin on this panel (BL is wired to 3V3)
   pinMode(PIN_BTN, INPUT_PULLUP);
 
   Serial.println("[boot] load config"); Serial.flush();
@@ -886,7 +905,6 @@ void setup() {
                 (unsigned)ESP.getFreeHeap());
   Serial.flush();
 
-  // paint something immediately: the panel must never sit blank while WiFi runs
   textC(FW_NAME, 100, C_CYAN, 1);
   textC(FW_VER, 116, C_GRAY, 1);
   textC("BOOTING", 134, C_GREEN, 1);
@@ -904,18 +922,24 @@ void setup() {
     configTzTime("CST-8", NTP1, NTP2);
   }
 
-  // radar page straight away, data is fetched from loop()
   gfx->fillScreen(C_BLACK);
   s_screen = SCR_PLANES;
   enterPlanes();
 #ifdef PR_SELFTEST
-  // page walk: draw each page once and log draw time, so a blank/broken page
-  // shows up in the log even without someone pressing the key
   unsigned long t;
-  t = millis(); renderClock();  Serial.printf("[self] clock page %lu ms\n", millis() - t); Serial.flush(); delay(2000);
-  t = millis(); enterWeather(); Serial.printf("[self] rain page %lu ms, msg=%s\n", millis() - t, s_wxMsg.c_str()); Serial.flush(); delay(2000);
+  t = millis(); renderClock();
+  Serial.printf("[self] clock page %lu ms\n", millis() - t); Serial.flush();
+  delay(2000);
+  drawRainSkeleton();
+  textC("LOADING...", R_CY + 8, C_GRAY, 1);
+  t = millis(); bool wok = fetchWeather();
+  Serial.printf("[self] rain page %lu ms ok=%d msg=%s\n", millis() - t, (int)wok,
+                s_wxMsg.c_str()); Serial.flush();
+  if (wok) drawRainFrame(); else drawRainFail();
+  delay(2500);
   t = millis(); s_screen = SCR_PLANES; enterPlanes();
-  Serial.printf("[self] plane page %lu ms\n", millis() - t); Serial.flush(); delay(2000);
+  Serial.printf("[self] plane page %lu ms\n", millis() - t); Serial.flush();
+  delay(2000);
 #endif
   Serial.println("[boot] setup done"); Serial.flush();
 }
@@ -925,23 +949,24 @@ static void handleButton() {
   static unsigned long tDown = 0;
   static bool longFired = false;
   bool now = digitalRead(PIN_BTN);
+  unsigned long ms = millis();
 
-  if (last == HIGH && now == LOW) {
-    tDown = millis();
+  if (last == HIGH && now == LOW) {          // press
+    tDown = ms;
     longFired = false;
-  } else if (last == LOW && now == HIGH) {
-    if (!longFired && millis() - tDown > 60 && millis() - tDown < 1200) {
+  } else if (last == LOW && now == HIGH) {   // release before the hold threshold
+    if (!longFired && ms - tDown >= 30) {    // => next screen (no upper limit!)
       s_screen = (s_screen + 1) % 3;
-      Serial.printf("[ui] screen=%d\n", s_screen);
+      Serial.printf("[ui] press %lu ms -> screen=%d\n", ms - tDown, s_screen);
       if (s_screen == SCR_PLANES) enterPlanes();
       else if (s_screen == SCR_WEATHER) enterWeather();
       else renderClock();
     }
   }
-  if (now == LOW && !longFired && millis() - tDown > 1200) {
+  if (now == LOW && !longFired && ms - tDown >= 900) {   // hold: next range, once
     longFired = true;
     s_range = (s_range + 1) % RANGE_N;
-    Serial.printf("[ui] range=%dkm\n", (int)RANGES_KM[s_range]);
+    Serial.printf("[ui] hold -> range=%dkm\n", (int)RANGES_KM[s_range]);
     s_screen = SCR_PLANES;
     enterPlanes();
   }
@@ -973,26 +998,9 @@ void loop() {
     s_wxDry = false;
     Serial.printf("[wxprobe] %s msg=%s\n", wxok ? "OK" : "FAIL", s_wxMsg.c_str());
     Serial.flush();
-    s_wxStamp = millis();
   }
 
   handleButton();
-
-#ifdef PR_SELFTEST
-  // rotate screens automatically so all three pages are exercised unattended
-  static unsigned long lastCycle = 0;
-  if (millis() - lastCycle > 20000UL) {
-    lastCycle = millis();
-    s_screen = (s_screen + 1) % 3;
-    unsigned long t = millis();
-    if (s_screen == SCR_PLANES) enterPlanes();
-    else if (s_screen == SCR_WEATHER) enterWeather();
-    else renderClock();
-    Serial.printf("[self] auto screen=%d %lu ms heap=%u\n", s_screen, millis() - t,
-                  (unsigned)ESP.getFreeHeap());
-    Serial.flush();
-  }
-#endif
 
   unsigned long now = millis();
 
@@ -1002,7 +1010,6 @@ void loop() {
       s_nextFetch = now + planePeriod();
       renderPlanes();                       // one full repaint per data update
     } else {
-      // smooth sweep: erase old beam, repair icons, draw new beam
       if (s_beamOn) drawBeam(s_sweep, C_BLACK);
       s_sweep += 4.0f;
       if (s_sweep >= 360.0f) s_sweep -= 360.0f;
@@ -1013,7 +1020,14 @@ void loop() {
     }
     delay(70);
   } else if (s_screen == SCR_WEATHER) {
-    if (millis() - s_wxStamp > 300000UL) enterWeather();   // refresh every 5 min
+    if (s_wxNeed) {
+      s_wxNeed = false;
+      bool ok = fetchWeather();            // skeleton was drawn by enterWeather()
+      if (ok) drawRainFrame(); else drawRainFail();
+      s_wxStamp = millis();
+    } else if (millis() - s_wxStamp > 300000UL) {
+      enterWeather();                      // refresh every 5 min
+    }
     delay(200);
   } else {
     clockTick();
