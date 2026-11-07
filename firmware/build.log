@@ -41,7 +41,7 @@ Collecting bitarray<4.0,>=3.0.0 (from bitstring~=4.3.1)
 Collecting pycparser (from cffi>=1.14->cryptography~=45.0.3)
   Using cached pycparser-3.12-py3-none-any.whl.metadata (9.7 kB)
 Downloading cryptography-45.0.7-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 82.1 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 24.3 MB/s  0:00:00
 Downloading ecdsa-0.19.2-py2.py3-none-any.whl (150 kB)
 Downloading bitstring-4.3.1-py3-none-any.whl (71 kB)
 Using cached reedsolo-1.7.0-py3-none-any.whl (32 kB)
@@ -97,11 +97,11 @@ Compiling .pio/build/esp32c3/src/main.cpp.o
 Building .pio/build/esp32c3/bootloader.bin
 Generating partitions .pio/build/esp32c3/partitions.bin
 Compiling .pio/build/esp32c3/lib30b/SPI/SPI.cpp.o
-Compiling .pio/build/esp32c3/liba33/Wire/Wire.cpp.o
 esptool.py v4.9.0
 Creating esp32c3 image...
 Merged 1 ELF section
 Successfully created esp32c3 image.
+Compiling .pio/build/esp32c3/liba33/Wire/Wire.cpp.o
 Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_DataBus.cpp.o
 Archiving .pio/build/esp32c3/lib30b/libSPI.a
 Indexing .pio/build/esp32c3/lib30b/libSPI.a
@@ -109,14 +109,10 @@ Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_G.cpp.o
 Archiving .pio/build/esp32c3/liba33/libWire.a
 Indexing .pio/build/esp32c3/liba33/libWire.a
 Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_GFX.cpp.o
-src/main.cpp: In function 'void handleButton()':
-src/main.cpp:1178:26: error: 'DEBOUN_MS' was not declared in this scope
-   if (ms - lastChange >= DEBOUN_MS && raw != level) {
-                          ^~~~~~~~~
-src/main.cpp:1178:26: note: suggested alternative: 'DEBOUNCE_MS'
-   if (ms - lastChange >= DEBOUN_MS && raw != level) {
-                          ^~~~~~~~~
-                          DEBOUNCE_MS
+src/main.cpp: In function 'void fetchPlanes()':
+src/main.cpp:1003:12: error: return-statement with a value, in function returning 'void' [-fpermissive]
+     return false;
+            ^~~~~
 Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_GFX_Library.cpp.o
 *** [.pio/build/esp32c3/src/main.cpp.o] Error 1
-========================= [FAILED] Took 38.27 seconds =========================
+========================= [FAILED] Took 46.72 seconds =========================
