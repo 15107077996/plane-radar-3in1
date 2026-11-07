@@ -235,7 +235,7 @@ static void handleRoot() {
 }
 static void handleSave() {
   if (s_srv->hasArg("ssid")) s_ssid = s_srv->arg("ssid");
-  if (s_srv->hasArg("pass")) s_pass = s_srv->arg("pass");
+  if (s_srv->hasArg("pass")) s_prefs = s_srv->arg("pass");
   saveCfg();
   s_srv->send(200, "text/plain", "Saved, restarting...");
   delay(800);
@@ -268,8 +268,8 @@ static void locateByIp() {
   int code = http.GET();
   if (code == 200) {
     String body = http.getString();
-    StaticJsonDocument<512> doc;
-    if (deserializeJson(doc, body) == 0) {
+    JsonDocument doc;
+    if (!deserializeJson(doc, body)) {
       const char *st = doc["status"];
       if (st && strcmp(st, "success") == 0) {
         float la = doc["lat"] | s_lat;
@@ -318,7 +318,7 @@ static bool fetchOpenMeteo() {
   if (code == 200) {
     String body = http.getString();
     JsonDocument doc;
-    if (deserializeJson(doc, body) == 0) {
+    if (!deserializeJson(doc, body)) {
       JsonObject cur = doc["current"];
       if (!cur.isNull()) {
         s_temp = cur["temperature_2m"] | s_temp;
@@ -475,14 +475,13 @@ static bool fetchPlanes() {
   WiFiClientSecure tls;
   tls.setInsecure();
   HTTPClient http;
-  http.begin(tls);
-  http.setURL(url);
+  http.begin(tls, url);
   int code = http.GET();
   bool ok = false;
   if (code == 200) {
     String body = http.getString();
     JsonDocument doc;
-    if (deserializeJson(doc, body) == 0) {
+    if (!deserializeJson(doc, body)) {
       JsonArray ac = doc["ac"];
       int n = 0;
       for (JsonObject p : ac) {
@@ -511,7 +510,7 @@ static bool fetchPlanes() {
       int nt = nearest();
       Serial.printf("[planes] total=%d nearest=%d %s %.1fkm\n",
                     s_planeCount, nt, nt >= 0 ? s_planes[nt].call : "-",
-                    nt >= 0 ? planeDistKm(nt));
+                    nt >= 0 ? planeDistKm(nt) : 0);
     }
   } else {
     Serial.printf("[planes] http %d\n", code);
@@ -535,7 +534,7 @@ static void drawPlanes(float sweep) {
   }
   // green crosshair
   gfx->drawLine(R_CX, R_CY - R_R, R_CX, R_CY + R_R, C_DKGREEN);
-  gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, C_DKGREEN);
+  gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, R_CY, C_DKGREEN);
 
   // range labels on right
   useFont(u8g2_font_helvB08_tr);
@@ -581,7 +580,7 @@ static void drawPlanes(float sweep) {
   // sort mapped by distance for label priority
   for (int a = 0; a < mc - 1; a++)
     for (int b = a + 1; b < mc; b++)
-      if (mapped[b].d < mapped[a]) { MP t = mapped[a]; mapped[a] = mapped[b]; mapped[b] = t; }
+      if (mapped[b].d < mapped[a].d) { MP t = mapped[a]; mapped[a] = mapped[b]; mapped[b] = t; }
   for (int i = 0; i < mc && lc < MAX_LABELS; i++) labelIdx[lc++] = mapped[i].i;
 
   // markers
@@ -634,8 +633,8 @@ static void drawHands(int hour, int minute, int second) {
   float aS = second * 6 * PI / 180;
   int hx = R_CX + (int)(sin(aH) * 48), hy = R_CY - (int)(cos(aH) * 48);
   int mx = R_CX + (int)(sin(aM) * 78), my = R_CY - (int)(cos(aM) * 78);
-  gfx->drawLine(R_CX, R_CY, hx, hy);
-  gfx->drawLine(R_CX, R_CY, mx, my);
+  gfx->drawLine(R_CX, R_CY, hx, hy, C_WHITE);
+  gfx->drawLine(R_CX, R_CY, mx, my, C_WHITE);
   int sx = R_CX + (int)(sin(aS) * 86), sy = R_CY - (int)(cos(aS) * 86);
   gfx->drawLine(R_CX, R_CY, sx, sy, C_RED);
 }
@@ -697,411 +696,9 @@ static void renderClock() {
                s_temp, wmoZh(s_code), s_hum);
       txtC(b, 172, C_GREEN);
     }
-    drawHands(s_tm.tm_hour, s_tm.tm_min, s_tm.tm_sec);
+    drawHands(...);
   } else {
     useFont(u8g2_font_helvB08_tr);
     txtC("TIME SYNC...", 120, C_YELLOW);
   }
-}
-
-// ---------------- forecast ----------------
-static void renderForecast() {
-  gfx->fillScreen(C_BLACK);
-  gfx->drawCircle(R_CX, R_CY, R_R, C_DKGREEN);
-
-  // top: city left, icon center, temps right
-  useFont(u8g2_font_helvB10_tr);
-  txtAt(s_city.c_str(), 28, 34, C_YELLOW);
-  if (s_metOk) {
-    drawWxIcon(120, 40, s_code, 10);
-    useFont(u8g2_font_unifont_t_chinese4);
-    txtC(wmoZh(s_code), 69, C_WHITE);
-    useFont(u8g2_font_helvB10_tr);
-    char t[24];
-    snprintf(t, sizeof(t), "%.0fC", s_temp);
-    txtAt(t, 178, 34, C_GREEN);
-    char hi[24];
-    snprintf(hi, sizeof(hi), "/%.0fC", s_days[0].tmax);
-    txtAt(hi, 178, 50, C_YELLOW);
-  } else {
-    useFont(u8g2_font_helvB08_tr);
-    txtC("LOADING...", 50, C_GRAY);
-  }
-
-  gfx->drawLine(30, 76, 210, 76, C_DKGREEN);
-
-  // 3 columns
-  static const char *DL[3] = {"明天", "后天", "大后天"};
-  int colX[3] = {48, 120, 192};
-  useFont(u8g2_font_unifont_t_chinese4);
-  for (int i = 0; i < 3; i++) {
-    int w = textW(DL[i]);
-    txtAt(DL[i], colX[i] - w / 2, 88, C_CYAN);
-  }
-  if (s_metOk) {
-    for (int i = 0; i < 3; i++) {
-      drawWxIcon(colX[i], 108, s_days[i].code, 8);
-      useFont(u8g2_font_helvB08_tr);
-      char tt[24];
-      snprintf(tt, sizeof(tt), "%.0f/%.0f", s_days[i].tmin, s_days[i].tmax);
-      int w = textW(tt);
-      txtAt(tt, colX[i] - w / 2, 130, C_WHITE);
-      useFont(u8g2_font_unifont_t_chinese4);
-      int zw = textW(wmoZh(s_days[i].code));
-      txtAt(wmoZh(s_days[i].code), colX[i] - zw / 2, 148, C_GREEN);
-    }
-  }
-
-  gfx->drawLine(30, 162, 210, 162, C_DKGREEN);
-
-  // bottom row
-  useFont(u8g2_font_helvB08_tr);
-  if (s_metOk) {
-    char b[64];
-    const char *rain = (s_code >= 51 && s_code <= 99) ? wmoZh(s_code) : "无雨";
-    snprintf(b, sizeof(b), "%.0fC  %s  %.0f%%", s_temp, rain, s_hum);
-    txtC(b, 178, C_WHITE);
-    if (s_timeOk) {
-      char u[24];
-      snprintf(u, sizeof(u), "UPD %02d:%02d", s_tm.tm_hour, s_tm.tm_min);
-      txtC(u, 200, C_GRAY);
-    }
-  }
-}
-
-// ---------------- rain png ----------------
-static void pngRow(PNGDRAW *pDraw) {
-  s_wxRows++;
-  int ty = pDraw->y + s_tileDy;
-  if (ty < 0 || ty >= SCR_H) return;
-  int iPixelType = pDraw->iPixelType;
-  uint8_t *px = pDraw->pPixels;
-  int w = pDraw->iWidth;
-  if (w > 256) w = 256;
-  int dy = ty - R_CY;
-  int dy2 = dy * dy;
-  uint16_t linebuf[256];
-  bool opaque[256];
-  for (int i = 0; i < 256; i++) { linebuf[i] = 0; opaque[i] = false; }
-
-  for (int i = 0; i < w; i++) {
-    int tx = i + s_tileDx;
-    bool inCircle = false;
-    if (tx >= 0 && tx < SCR_W) {
-      int dx = tx - R_CX;
-      if (dx * dx + dy2 <= R_R * R_R) inCircle = true;
-    }
-    uint16_t col = 0;
-    bool trans = false;
-    if (iPixelType == PNG_PIXEL_TRUECOLOR_ALPHA) {
-      uint8_t a = px[i * 4 + 3];
-      if (a < 30) trans = true;
-      else col = (uint16_t)(((px[i * 4] & 0xF8) << 8) |
-                           ((px[i * 4 + 1] & 0xFC) << 3) | (px[i * 4 + 2] >> 3));
-      if (s_pngMode == 1 && a >= 30 && inCircle) s_rainPx++;
-    } else if (iPixelType == PNG_PIXEL_TRUECOLOR) {
-      col = (uint16_t)(((px[i * 3] & 0xF8) << 8) |
-                       ((px[i * 3 + 1] & 0xFC) << 3) | (px[i * 3 + 2] >> 3));
-    } else if (iPixelType == PNG_PIXEL_INDEXED) {
-      uint8_t idx = px[i];
-      uint8_t a = pDraw->pPalette[768 + idx]; // tRNS alpha, default 255
-      if (idx == 0 || a < 30) trans = true;
-      else {
-        uint8_t r = pDraw->pPalette[idx * 3];
-        uint8_t g = pDraw->pPalette[idx * 3 + 1];
-        uint8_t b = pDraw->pPalette[idx * 3 + 2];
-        col = (uint16_t)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
-      }
-      if (s_pngMode == 1 && !trans && inCircle) s_rainPx++;
-    } else {
-      uint8_t g8 = px[i];
-      col = (uint16_t)(((g8 & 0xF8) << 8) | ((g8 & 0xFC) << 3) | (g8 >> 3));
-    }
-    linebuf[i] = col;
-    if (s_pngMode == 0) opaque[i] = inCircle;            // base: ignore alpha
-    else opaque[i] = inCircle && !trans;                // rain: skip transparent
-  }
-
-  if (s_pngMode == 0) {
-    // full-width single burst, out-of-circle black
-    gfx->draw16bitRGBBitmap(s_tileDx, ty, linebuf, 256, 1);
-  } else {
-    // contiguous opaque runs, never overwriting base on transparent pixels
-    int i = 0;
-    while (i < w) {
-      if (!opaque[i]) { i++; continue; }
-      int st = i;
-      while (i < w && opaque[i]) i++;
-      gfx->draw16bitRGBBitmap(st + s_tileDx, ty, &linebuf[st], i - st, 1);
-    }
-  }
-}
-
-static bool decodePng(int mode) {
-  s_pngMode = mode;
-  s_wxRows = 0;
-  int rc = s_png.openRAM(s_pngData, (int)s_pngLen, pngRow);
-  if (rc != PNG_SUCCESS) {
-    Serial.printf("[png] open rc=%d\n", rc);
-    return false;
-  }
-  int pngW = s_png.getWidth();
-  int pngH = s_png.getHeight();
-  rc = s_png.decode(0, 0);
-  s_png.close();
-  bool benign = (rc != PNG_SUCCESS && s_wxRows >= pngH);
-  if (rc != PNG_SUCCESS && !benign) {
-    Serial.printf("[png] decode rc=%d rows=%d/%d\n", rc, s_wxRows, pngH);
-    return false;
-  }
-  Serial.printf("[png] mode=%d rc=%d rows=%d/%d\n", mode, rc, s_wxRows, pngH);
-  return true;
-}
-
-static bool downloadToBuf(const char *url) {
-  HTTPClient http;
-  http.begin(url);
-  int code = http.GET();
-  if (code != 200) {
-    Serial.printf("[dl] %s http=%d\n", url, code);
-    http.end();
-    return false;
-  }
-  int total = http.getSize();
-  WiFiClient *stream = http.getStreamPtr();
-  s_pngLen = 0;
-  uint32_t start = millis();
-  while (http.connected() && (total < 0 || (int)s_pngLen < total)) {
-    size_t avail = stream->available();
-    if (avail) {
-      if (s_pngLen + avail > PNG_BUF_CAP) avail = PNG_BUF_CAP - s_pngLen;
-      if (avail == 0) break;
-      int got = stream->readBytes(s_pngData + s_pngLen, avail);
-      s_pngLen += got;
-    } else {
-      delay(2);
-      if (millis() - start > 12000) break;
-    }
-  }
-  http.end();
-  if ((int)s_pngLen < 64) {
-    Serial.printf("[dl] too short %u\n", s_pngLen);
-    return false;
-  }
-  return true;
-}
-
-static bool rainRefresh() {
-  s_rainOk = false;
-  s_rainPx = 0;
-  HTTPClient http;
-  http.begin("http://api.rainviewer.com/public/weather-maps.json");
-  int code = http.GET();
-  if (code != 200) { Serial.printf("[rain] meta http=%d\n", code); http.end(); return false; }
-  String meta = http.getString();
-  http.end();
-  JsonDocument doc;
-  if (deserializeJson(doc, meta) != 0) { Serial.println("[rain] meta json fail"); return false; }
-  JsonArray now = doc["radar"]["nowcast"];
-  if (now.isNull() || now.size() == 0) { Serial.println("[rain] no nowcast"); return false; }
-  s_rainPath = (const char *)now[0]["path"];
-  if (s_rainPath.length() == 0) { Serial.println("[rain] no path"); return false; }
-
-  double fx, fy;
-  lonLatToTile((double)s_lat, (double)s_lon, WX_ZOOM, s_tileX, s_tileY, fx, fy);
-  s_tileDx = (int)round(R_CX - fx);
-  s_tileDy = (int)round(R_CY - fy);
-
-  // base map (Gaode, icon center, opaque)
-  char baseUrl[200];
-  snprintf(baseUrl, sizeof(baseUrl),
-           "http://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1"
-           "&style=8&x=%d&y=%d&z=%d", s_tileX, s_tileY, WX_ZOOM);
-  gfx->fillScreen(C_BLACK);
-  if (!downloadToBuf(baseUrl)) { txtC("BASE ERR", 120, C_RED); return false; }
-  if (!decodePng(0)) { txtC("BASE DEC ERR", 120, C_RED); return false; }
-
-  // rain overlay
-  char rainUrl[240];
-  snprintf(rainUrl, sizeof(rainUrl),
-           "http://tilecache.rainviewer.com%s/256/%d/%d/%d/2/1_1.png",
-           s_rainPath.c_str(), WX_ZOOM, s_tileX, s_tileY);
-  if (!downloadToBuf(rainUrl)) {
-    useFont(u8g2_font_helvB08_tr);
-    txtC("RAIN ERR", 120, C_RED);
-    return false;
-  }
-  if (!decodePng(1)) {
-    useFont(u8g2_font_helvB08_tr);
-    txtC("RAIN DEC ERR", 120, C_RED);
-    return false;
-  }
-
-  gfx->drawCircle(R_CX, R_CY, R_R, C_WHITE);
-  int cover = s_rainPx * 100 / 39408;
-  useFont(u8g2_font_helvB08_tr);
-  char st[32];
-  snprintf(st, sizeof(st), "OK R%d%%", cover);
-  txtC(st, 224, C_GREEN);
-  s_rainMs = millis();
-  s_rainOk = true;
-  Serial.printf("[rain] ok cover=%d%%\n", cover);
-  return true;
-}
-
-// ---------------- page entry ----------------
-static void enterPage(int page) {
-  s_screen = page;
-  if (page == SCR_CLOCK) {
-    renderClock();
-  } else if (page == SCR_PLANES) {
-    drawPlanes(s_sweep);
-  } else if (page == SCR_FORECAST) {
-    renderForecast();
-  } else if (page == SCR_RAIN) {
-    rainRefresh();
-  }
-}
-
-// ---------------- button ----------------
-#define DEBOUNCE_MS 20
-#define HOLD_MS 600
-static bool s_prev = true;
-static unsigned long s_tDown = 0;
-static bool s_longFired = false;
-
-static void handleButton() {
-  bool level = digitalRead(PIN_KEY) == HIGH;
-  unsigned long now = millis();
-  if (level != s_prev) {
-    delay(DEBOUNCE_MS);
-    level = digitalRead(PIN_KEY) == HIGH;
-    if (level != s_prev) {
-      if (!level) {
-        s_tDown = now;
-        s_longFired = false;
-      }
-      s_prev = level;
-    }
-  }
-  if (level == LOW && !s_longFired && now - s_tDown >= HOLD_MS) {
-    s_longFired = true;
-    s_rangeIdx = (s_rangeIdx + 1) % 6;
-    Serial.printf("[key] long range -> %.0fkm\n", rangeKm());
-    enterPage(SCR_PLANES);
-  }
-  if (level == HIGH && s_prev == LOW) {
-    if (!s_longFired) {
-      int next = (s_screen + 1) % 4;
-      Serial.printf("[key] short -> page %d\n", next);
-      enterPage(next);
-    }
-  }
-}
-
-// ---------------- ticks ----------------
-static void tickClock() {
-  if (s_timeOk && s_tm.tm_sec != s_lastSec) {
-    s_lastSec = s_tm.tm_sec;
-    renderClock();
-  }
-}
-static void tickPlanes(unsigned long now) {
-  if (now - s_sweepMs >= 80) {
-    s_sweepMs = now;
-    s_sweep += 7;
-    if (s_sweep >= 360) s_sweep -= 360;
-    drawPlanes(s_sweep);
-  }
-  if (now - s_planeMs >= 60000 || s_planeCount == 0) {
-    if (fetchPlanes()) drawPlanes(s_sweep);
-  }
-}
-static void tickForecast(unsigned long now) {
-  if ((!s_metOk && now - s_metTryMs >= 30000) ||
-      (s_metOk && now - s_metMs >= 600000)) {
-    s_metTryMs = now;
-    fetchOpenMeteo();
-  }
-}
-static void tickRain(unsigned long now) {
-  if ((!s_rainOk && now - s_rainTryMs >= 30000) ||
-      (s_rainOk && now - s_rainMs >= 600000)) {
-    s_rainTryMs = now;
-    rainRefresh();
-  }
-}
-
-// ---------------- setup ----------------
-void setup() {
-  Serial.begin(115200);
-  delay(200);
-  Serial.println();
-  Serial.printf("PlaneRadar %s\n", FW_VER);
-
-  pinMode(PIN_KEY, INPUT_PULLUP);
-  s_prev = digitalRead(PIN_KEY) == HIGH;
-
-  s_bus = new Arduino_ESP32SPI(PR_DC, PR_CS, PR_SCLK, PR_MOSI, GFX_NOT_DEFINED,
-                               PR_SPI_FREQ, SPI_MODE0, 1, 1, 1, 1);
-  gfx = new Arduino_GC9A01(s_bus, PR_RST, 0, true);
-  gfx->begin();
-  gfx->setUTF8Print(true);
-  gfx->fillScreen(C_BLACK);
-
-  s_pngData = (uint8_t *)malloc(PNG_BUF_CAP);
-  if (!s_pngData) Serial.println("[mem] png alloc fail");
-
-  s_prefs.begin("radar", false);
-  int ver = s_prefs.getInt("ver", 0);
-  s_ssid = s_prefs.getString("ssid", "");
-  s_pass = s_prefs.getString("pass", "");
-  s_lat = s_prefs.getFloat("lat", 23.3924f);
-  s_lon = s_prefs.getFloat("lon", 113.2988f);
-  s_city = s_prefs.getString("city", "Guangzhou");
-  s_cfgValid = (ver == CFG_VER && s_ssid.length() > 0);
-
-  if (!s_cfgValid) {
-    startPortal();
-    return;
-  }
-
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(s_ssid.c_str(), s_pass.c_str());
-  useFont(u8g2_font_helvB08_tr);
-  txtC("WIFI...", 110, C_YELLOW);
-  int wtry = 0;
-  while (WiFi.status() != WL_CONNECTED && wtry < 40) {
-    delay(500);
-    wtry++;
-  }
-  if (WiFi.status() != WL_CONNECTED) {
-    txtC("WIFI FAIL", 130, C_RED);
-    delay(2000);
-    startPortal();
-    return;
-  }
-  Serial.printf("[wifi] %s rssi=%d\n", WiFi.localIP().toString().c_str(),
-                WiFi.RSSI());
-
-  locateByIp();
-  syncTime();
-  fetchOpenMeteo();
-  fetchPlanes();
-
-  s_screen = SCR_CLOCK;
-  renderClock();
-}
-
-// ---------------- loop ----------------
-void loop() {
-  unsigned long now = millis();
-  handleButton();
-  switch (s_screen) {
-    case SCR_CLOCK: tickClock(); break;
-    case SCR_PLANES: tickPlanes(now); break;
-    case SCR_FORECAST: tickForecast(now); break;
-    case SCR_RAIN: tickRain(now); break;
-  }
-  delay(20);
 }
