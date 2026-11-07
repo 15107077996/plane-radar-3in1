@@ -19,6 +19,8 @@
 //     so no 115KB overlay buffer is needed.
 //   * WiFi NKWRJ is built in; the AP "PlaneRadar-Setup" (http://192.168.4.1)
 //     is only started when joining that network fails.
+//   * Every network call is time-bounded (TLS handshake 6 s) so a slow/blocked
+//     host can never freeze the UI: the screen is painted before any request.
 // =============================================================================
 
 #include <Arduino.h>
@@ -75,10 +77,11 @@
 #define R_R   112
 
 #define SPI_HZ 27000000     // 27 MHz: safe on dupont wires, still no visible lag
+#define TLS_HANDSHAKE_S 6   // cap TLS handshake, a stuck host must not freeze the UI
 
 // ------------------------------------------------------------------ config --
 #define FW_NAME "PlaneRadar 3in1"
-#define FW_VER  "1.0.3-c3"
+#define FW_VER  "1.0.4-c3"
 #define AP_NAME "PlaneRadar-Setup"
 #define NTP1    "ntp.aliyun.com"
 #define NTP2    "cn.pool.ntp.org"
@@ -142,6 +145,7 @@ static String   s_wxMsg   = "wait";
 static unsigned long s_wxStamp = 0;
 static int      s_tileDx = 0, s_tileDy = 0;
 static bool     s_wxDry  = false;      // true while self-testing, no pixels drawn
+static bool     s_wxProbeDone = false; // one-shot boot rain check (runs from loop)
 
 // radar beam
 static float s_sweep  = 0.0f;
@@ -402,6 +406,7 @@ static void clockTick() {
 
 // ================================================================= weather ==
 #define WX_ZOOM 7
+static const char *WX_HOST = "api.rainviewer.com";
 
 // one decoded PNG row -> panel, clipped to the round dial
 static void pngRow(PNGDRAW *pDraw) {
@@ -467,8 +472,9 @@ static bool httpGetToBuffer(const char *url, uint8_t *buf, int cap, int *got) {
   *got = 0;
   WiFiClientSecure c;
   c.setInsecure();
+  c.setHandshakeTimeout(TLS_HANDSHAKE_S);
   HTTPClient http;
-  http.setConnectTimeout(8000);
+  http.setConnectTimeout(TLS_HANDSHAKE_S * 1000);
   http.setTimeout(15000);
   if (!http.begin(c, String(url))) return false;
   http.addHeader("User-Agent", "PlaneRadar3in1/1.0");
@@ -502,25 +508,36 @@ static bool httpGetToBuffer(const char *url, uint8_t *buf, int cap, int *got) {
 static bool fetchWeather() {
   s_wxOk = false;
 
+  // 0) DNS: log the resolved IPv4 so a DNS failure is visible in the log
+  IPAddress ip;
+  Serial.printf("[wx] dns %s ... ", WX_HOST); Serial.flush();
+  if (!WiFi.hostByName(WX_HOST, ip)) {
+    s_wxMsg = "DNS";
+    Serial.println("FAIL"); Serial.flush();
+    return false;
+  }
+  Serial.println(ip.toString().c_str()); Serial.flush();
+
   // 1) metadata
   WiFiClientSecure c;
   c.setInsecure();
+  c.setHandshakeTimeout(TLS_HANDSHAKE_S);
   HTTPClient http;
-  http.setConnectTimeout(8000);
+  http.setConnectTimeout(TLS_HANDSHAKE_S * 1000);
   http.setTimeout(12000);
-  if (!http.begin(c, String("https://api.rainviewer.com/public/weather-maps.json"))) {
-    s_wxMsg = "BEGIN";
-    return false;
-  }
+  String meta = "https://" + String(WX_HOST) + "/public/weather-maps.json";
+  if (!http.begin(c, meta)) { s_wxMsg = "BEGIN"; return false; }
+  Serial.println("[wx] meta GET"); Serial.flush();
   int code = http.GET();
+  Serial.printf("[wx] meta http %d\n", code); Serial.flush();
   if (code != HTTP_CODE_OK) {
     http.end();
     s_wxMsg = "META" + String(code);
-    Serial.printf("[wx] meta http %d\n", code);
     return false;
   }
   String body = http.getString();
   http.end();
+  Serial.printf("[wx] meta body %d bytes\n", (int)body.length()); Serial.flush();
 
   JsonDocument doc;
   if (deserializeJson(doc, body)) { s_wxMsg = "JSON"; return false; }
@@ -546,6 +563,7 @@ static bool fetchWeather() {
   char url[192];
   snprintf(url, sizeof(url), "%s%s/256/%d/%d/%d/2/1_1.png", host.c_str(), path.c_str(),
            WX_ZOOM, tx, ty);
+  Serial.println(url); Serial.flush();
 
   // 3) download + decode
   if (!s_pngData) { s_wxMsg = "NOMEM"; return false; }
@@ -622,12 +640,12 @@ static void saveCfg() {
 
 static void loadCfg() {
   bool ok = prefs.begin("pr3", true);
-  if (!ok) {                       // NVS empty on a fresh chip: create it, use built-ins
-    prefs.begin("pr3", false);
+  if (!ok) {                       // NVS empty on a fresh chip: seed it with defaults
     prefs.end();
     s_ssid = DEFAULT_SSID;
     s_pass = DEFAULT_PASS;
-    Serial.printf("[cfg] no nvs data, using built-in wifi %s\n", DEFAULT_SSID);
+    saveCfg();                     // write the keys now so later reads never log NOT_FOUND
+    Serial.printf("[cfg] nvs empty, seeded built-in wifi %s\n", DEFAULT_SSID);
     return;
   }
   s_ssid = prefs.getString("ssid", DEFAULT_SSID);
@@ -701,12 +719,12 @@ static bool connectWifi() {
   if (hits == 0) Serial.printf("[wifi] target '%s' NOT in scan (2.4G band off or hidden)\n",
                                s_ssid.c_str());
 
-  for (int attempt = 1; attempt <= 3; attempt++) {
+  for (int attempt = 1; attempt <= 2; attempt++) {
     Serial.printf("[wifi] connect attempt %d to '%s'\n", attempt, s_ssid.c_str());
     Serial.flush();
     WiFi.begin(s_ssid.c_str(), s_pass.c_str());
     unsigned long t0 = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - t0 < 12000) delay(200);
+    while (WiFi.status() != WL_CONNECTED && millis() - t0 < 10000) delay(200);
     if (WiFi.status() == WL_CONNECTED) {
       Serial.printf("[wifi] connected ip=%s rssi=%d\n", WiFi.localIP().toString().c_str(),
                     WiFi.RSSI());
@@ -743,15 +761,15 @@ static void sortPlanes() {
 }
 
 static void fetchPlanes() {
-  float nm = FETCH_NM;
   char url[128];
   snprintf(url, sizeof(url), "https://opendata.adsb.fi/api/v3/lat/%.5f/lon/%.5f/dist/%.1f",
-           s_lat, s_lon, nm);
+           s_lat, s_lon, FETCH_NM);
 
   WiFiClientSecure c;
   c.setInsecure();
+  c.setHandshakeTimeout(TLS_HANDSHAKE_S);
   HTTPClient http;
-  http.setConnectTimeout(8000);
+  http.setConnectTimeout(TLS_HANDSHAKE_S * 1000);
   http.setTimeout(12000);
   if (!http.begin(c, String(url))) { s_adsbMsg = "BEGIN"; return; }
   http.addHeader("User-Agent", "PlaneRadar3in1/1.0");
@@ -868,6 +886,11 @@ void setup() {
                 (unsigned)ESP.getFreeHeap());
   Serial.flush();
 
+  // paint something immediately: the panel must never sit blank while WiFi runs
+  textC(FW_NAME, 100, C_CYAN, 1);
+  textC(FW_VER, 116, C_GRAY, 1);
+  textC("BOOTING", 134, C_GREEN, 1);
+
   allocPngBuffer();
   Serial.flush();
 
@@ -879,24 +902,10 @@ void setup() {
     Serial.printf("[wifi] connected %s ip=%s rssi=%d\n", s_ssid.c_str(),
                   WiFi.localIP().toString().c_str(), WiFi.RSSI());
     configTzTime("CST-8", NTP1, NTP2);
-    gfx->fillScreen(C_BLACK);
-    textC("WIFI OK", 90, C_GREEN, 2);
-    textC(WiFi.localIP().toString().c_str(), 120, C_GRAY, 1);
-    delay(800);
   }
 
-  // one-shot rain self test: download + decode the real tile without drawing
-  // pixels, so a broken weather page shows up in the boot log instead of later
-  if (!s_portal) {
-    Serial.println("[wxprobe] checking rainviewer tile"); Serial.flush();
-    s_wxDry = true;
-    bool wxok = fetchWeather();
-    s_wxDry = false;
-    Serial.printf("[wxprobe] %s msg=%s\n", wxok ? "OK" : "FAIL", s_wxMsg.c_str());
-    Serial.flush();
-    gfx->fillScreen(C_BLACK);
-  }
-
+  // radar page straight away, data is fetched from loop()
+  gfx->fillScreen(C_BLACK);
   s_screen = SCR_PLANES;
   enterPlanes();
 #ifdef PR_SELFTEST
@@ -953,6 +962,18 @@ void loop() {
     server.handleClient();
     delay(2);
     return;
+  }
+
+  // one-shot rain check, 20 s after boot, never in the setup path
+  if (!s_wxProbeDone && millis() > 20000UL) {
+    s_wxProbeDone = true;
+    Serial.println("[wxprobe] checking rainviewer tile"); Serial.flush();
+    s_wxDry = true;
+    bool wxok = fetchWeather();
+    s_wxDry = false;
+    Serial.printf("[wxprobe] %s msg=%s\n", wxok ? "OK" : "FAIL", s_wxMsg.c_str());
+    Serial.flush();
+    s_wxStamp = millis();
   }
 
   handleButton();
