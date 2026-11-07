@@ -41,7 +41,7 @@ Collecting bitarray<4.0,>=3.0.0 (from bitstring~=4.3.1)
 Collecting pycparser (from cffi>=1.14->cryptography~=45.0.3)
   Using cached pycparser-3.12-py3-none-any.whl.metadata (9.7 kB)
 Downloading cryptography-45.0.7-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 64.7 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 17.4 MB/s  0:00:00
 Downloading ecdsa-0.19.2-py2.py3-none-any.whl (150 kB)
 Downloading bitstring-4.3.1-py3-none-any.whl (71 kB)
 Using cached reedsolo-1.7.0-py3-none-any.whl (32 kB)
@@ -126,165 +126,18 @@ Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_d_memory.c.o
 Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_d_setup.c.o
 Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_font.c.o
 Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_fonts.c.o
-src/main.cpp: In function 'void locateByIp()':
-src/main.cpp:271:5: warning: 'template<unsigned int N> class ArduinoJson::V710PB22::StaticJsonDocument' is deprecated: use JsonDocument instead [-Wdeprecated-declarations]
-     StaticJsonDocument<512> doc;
-     ^~~~~~~~~~~~~~~~~~
-In file included from .pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson.hpp:56,
-                 from .pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson.h:9,
-                 from src/main.cpp:5:
-.pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson/compatibility.hpp:63:58: note: declared here
- class ARDUINOJSON_DEPRECATED("use JsonDocument instead") StaticJsonDocument
-                                                          ^~~~~~~~~~~~~~~~~~
-src/main.cpp:272:39: error: invalid conversion from 'int' to 'ArduinoJson::V710PB22::DeserializationError::Code' [-fpermissive]
-     if (deserializeJson(doc, body) == 0) {
-                                       ^
-In file included from .pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson/Deserialization/deserialize.hpp:7,
-                 from .pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson/Json/JsonDeserializer.hpp:7,
-                 from .pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson.hpp:48,
-                 from .pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson.h:9,
-                 from src/main.cpp:5:
-.pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson/Deserialization/DeserializationError.hpp:42:64: note:   initializing argument 2 of 'bool ArduinoJson::V710PB22::operator==(const ArduinoJson::V710PB22::DeserializationError&, ArduinoJson::V710PB22::DeserializationError::Code)'
-   friend bool operator==(const DeserializationError& lhs, Code rhs) {
-                                                           ~~~~~^~~
-src/main.cpp: In function 'bool fetchOpenMeteo()':
-src/main.cpp:321:39: error: invalid conversion from 'int' to 'ArduinoJson::V710PB22::DeserializationError::Code' [-fpermissive]
-     if (deserializeJson(doc, body) == 0) {
-                                       ^
-In file included from .pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson/Deserialization/deserialize.hpp:7,
-                 from .pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson/Json/JsonDeserializer.hpp:7,
-                 from .pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson.hpp:48,
-                 from .pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson.h:9,
-                 from src/main.cpp:5:
-.pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson/Deserialization/DeserializationError.hpp:42:64: note:   initializing argument 2 of 'bool ArduinoJson::V710PB22::operator==(const ArduinoJson::V710PB22::DeserializationError&, ArduinoJson::V710PB22::DeserializationError::Code)'
-   friend bool operator==(const DeserializationError& lhs, Code rhs) {
-                                                           ~~~~~^~~
-src/main.cpp: In function 'bool fetchPlanes()':
-src/main.cpp:478:17: error: no matching function for call to 'HTTPClient::begin(WiFiClientSecure&)'
-   http.begin(tls);
-                 ^
-In file included from src/main.cpp:4:
-/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h:182:10: note: candidate: 'bool HTTPClient::begin(WiFiClient&, String)'
-     bool begin(WiFiClient &client, String url);
-          ^~~~~
-/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h:182:10: note:   candidate expects 2 arguments, 1 provided
-/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h:183:10: note: candidate: 'bool HTTPClient::begin(WiFiClient&, String, uint16_t, String, bool)'
-     bool begin(WiFiClient &client, String host, uint16_t port, String uri = "/", bool https = false);
-          ^~~~~
-/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h:183:10: note:   candidate expects 5 arguments, 1 provided
-/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h:186:10: note: candidate: 'bool HTTPClient::begin(String)'
-     bool begin(String url);
-          ^~~~~
-/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h:186:10: note:   no known conversion for argument 1 from 'WiFiClientSecure' to 'String'
-/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h:187:10: note: candidate: 'bool HTTPClient::begin(String, const char*)'
-     bool begin(String url, const char* CAcert);
-          ^~~~~
-/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h:187:10: note:   candidate expects 2 arguments, 1 provided
-/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h:188:10: note: candidate: 'bool HTTPClient::begin(String, uint16_t, String)'
-     bool begin(String host, uint16_t port, String uri = "/");
-          ^~~~~
-/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h:188:10: note:   candidate expects 3 arguments, 1 provided
-/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h:189:10: note: candidate: 'bool HTTPClient::begin(String, uint16_t, String, const char*)'
-     bool begin(String host, uint16_t port, String uri, const char* CAcert);
-          ^~~~~
-/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h:189:10: note:   candidate expects 4 arguments, 1 provided
-/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h:190:10: note: candidate: 'bool HTTPClient::begin(String, uint16_t, String, const char*, const char*, const char*)'
-     bool begin(String host, uint16_t port, String uri, const char* CAcert, const char* cli_cert, const char* cli_key);
-          ^~~~~
-/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h:190:10: note:   candidate expects 6 arguments, 1 provided
-src/main.cpp:485:39: error: invalid conversion from 'int' to 'ArduinoJson::V710PB22::DeserializationError::Code' [-fpermissive]
-     if (deserializeJson(doc, body) == 0) {
-                                       ^
-In file included from .pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson/Deserialization/deserialize.hpp:7,
-                 from .pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson/Json/JsonDeserializer.hpp:7,
-                 from .pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson.hpp:48,
-                 from .pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson.h:9,
-                 from src/main.cpp:5:
-.pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson/Deserialization/DeserializationError.hpp:42:64: note:   initializing argument 2 of 'bool ArduinoJson::V710PB22::operator==(const ArduinoJson::V710PB22::DeserializationError&, ArduinoJson::V710PB22::DeserializationError::Code)'
-   friend bool operator==(const DeserializationError& lhs, Code rhs) {
-                                                           ~~~~~^~~
-src/main.cpp:514:46: error: expected ':' before ')' token
-                     nt >= 0 ? planeDistKm(nt));
-                                              ^
-                                              :
-src/main.cpp:514:46: error: expected primary-expression before ')' token
-src/main.cpp: In function 'void drawPlanes(float)':
-src/main.cpp:538:56: error: no matching function for call to 'Arduino_GFX::drawLine(int, int, int, int)'
-   gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, C_DKGREEN);
-                                                        ^
-In file included from .pio/libdeps/esp32c3/GFX Library for Arduino/src/Arduino_GFX_Library.h:42,
-                 from src/main.cpp:6:
-.pio/libdeps/esp32c3/GFX Library for Arduino/src/Arduino_GFX.h:209:8: note: candidate: 'void Arduino_GFX::drawLine(int16_t, int16_t, int16_t, int16_t, uint16_t)'
-   void drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color);
-        ^~~~~~~~
-.pio/libdeps/esp32c3/GFX Library for Arduino/src/Arduino_GFX.h:209:8: note:   candidate expects 5 arguments, 4 provided
-src/main.cpp:584:23: error: no match for 'operator<' (operand types are 'float' and 'drawPlanes(float)::MP')
-       if (mapped[b].d < mapped[a]) { MP t = mapped[a]; mapped[a] = mapped[b]; mapped[b] = t; }
-           ~~~~~~~~~~~~^~~~~~~~~~~
-src/main.cpp: In function 'void drawHands(int, int, int)':
-src/main.cpp:637:35: error: no matching function for call to 'Arduino_GFX::drawLine(int, int, int&, int&)'
-   gfx->drawLine(R_CX, R_CY, hx, hy);
-                                   ^
-In file included from .pio/libdeps/esp32c3/GFX Library for Arduino/src/Arduino_GFX_Library.h:42,
-                 from src/main.cpp:6:
-.pio/libdeps/esp32c3/GFX Library for Arduino/src/Arduino_GFX.h:209:8: note: candidate: 'void Arduino_GFX::drawLine(int16_t, int16_t, int16_t, int16_t, uint16_t)'
-   void drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color);
-        ^~~~~~~~
-.pio/libdeps/esp32c3/GFX Library for Arduino/src/Arduino_GFX.h:209:8: note:   candidate expects 5 arguments, 4 provided
-src/main.cpp:638:35: error: no matching function for call to 'Arduino_GFX::drawLine(int, int, int&, int&)'
-   gfx->drawLine(R_CX, R_CY, mx, my);
-                                   ^
-In file included from .pio/libdeps/esp32c3/GFX Library for Arduino/src/Arduino_GFX_Library.h:42,
-                 from src/main.cpp:6:
-.pio/libdeps/esp32c3/GFX Library for Arduino/src/Arduino_GFX.h:209:8: note: candidate: 'void Arduino_GFX::drawLine(int16_t, int16_t, int16_t, int16_t, uint16_t)'
-   void drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color);
-        ^~~~~~~~
-.pio/libdeps/esp32c3/GFX Library for Arduino/src/Arduino_GFX.h:209:8: note:   candidate expects 5 arguments, 4 provided
-src/main.cpp: In function 'bool rainRefresh()':
-src/main.cpp:904:37: error: invalid conversion from 'int' to 'ArduinoJson::V710PB22::DeserializationError::Code' [-fpermissive]
-   if (deserializeJson(doc, meta) != 0) { Serial.println("[rain] meta json fail"); return false; }
-                                     ^
-In file included from .pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson/Deserialization/deserialize.hpp:7,
-                 from .pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson/Json/JsonDeserializer.hpp:7,
-                 from .pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson.hpp:48,
-                 from .pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson.h:9,
-                 from src/main.cpp:5:
-.pio/libdeps/esp32c3/ArduinoJson/src/ArduinoJson/Deserialization/DeserializationError.hpp:48:64: note:   initializing argument 2 of 'bool ArduinoJson::V710PB22::operator!=(const ArduinoJson::V710PB22::DeserializationError&, ArduinoJson::V710PB22::DeserializationError::Code)'
-   friend bool operator!=(const DeserializationError& lhs, Code rhs) {
-                                                           ~~~~~^~~
-src/main.cpp: In function 'void handleButton()':
-src/main.cpp:974:28: error: 'PIN_KEY' was not declared in this scope
-   bool level = digitalRead(PIN_KEY) == HIGH;
-                            ^~~~~~~
-src/main.cpp:974:28: note: suggested alternative: 'PR_KEY'
-   bool level = digitalRead(PIN_KEY) == HIGH;
-                            ^~~~~~~
-                            PR_KEY
-src/main.cpp: In function 'void setup()':
-src/main.cpp:1042:11: error: 'PIN_KEY' was not declared in this scope
-   pinMode(PIN_KEY, INPUT_PULLUP);
-           ^~~~~~~
-src/main.cpp:1042:11: note: suggested alternative: 'PR_KEY'
-   pinMode(PIN_KEY, INPUT_PULLUP);
-           ^~~~~~~
-           PR_KEY
-src/main.cpp:1046:66: error: no matching function for call to 'Arduino_ESP32SPI::Arduino_ESP32SPI(int, int, int, int, int, int, int, int, int, int, int)'
-                                PR_SPI_FREQ, SPI_MODE0, 1, 1, 1, 1);
-                                                                  ^
-In file included from .pio/libdeps/esp32c3/GFX Library for Arduino/src/Arduino_GFX_Library.h:24,
-                 from src/main.cpp:6:
-.pio/libdeps/esp32c3/GFX Library for Arduino/src/databus/Arduino_ESP32SPI.h:37:3: note: candidate: 'Arduino_ESP32SPI::Arduino_ESP32SPI(int8_t, int8_t, int8_t, int8_t, int8_t, uint8_t, bool)'
-   Arduino_ESP32SPI(int8_t dc = GFX_NOT_DEFINED, int8_t cs = GFX_NOT_DEFINED, int8_t sck = GFX_NOT_DEFINED, int8_t mosi = GFX_NOT_DEFINED, int8_t miso = GFX_NOT_DEFINED, uint8_t spi_num = FSPI, bool is_shared_interface = true); // Constructor
-   ^~~~~~~~~~~~~~~~
-.pio/libdeps/esp32c3/GFX Library for Arduino/src/databus/Arduino_ESP32SPI.h:37:3: note:   candidate expects 7 arguments, 11 provided
-In file included from .pio/libdeps/esp32c3/GFX Library for Arduino/src/Arduino_GFX_Library.h:24,
-                 from src/main.cpp:6:
-.pio/libdeps/esp32c3/GFX Library for Arduino/src/databus/Arduino_ESP32SPI.h:29:7: note: candidate: 'constexpr Arduino_ESP32SPI::Arduino_ESP32SPI(const Arduino_ESP32SPI&)'
- class Arduino_ESP32SPI : public Arduino_DataBus
-       ^~~~~~~~~~~~~~~~
-.pio/libdeps/esp32c3/GFX Library for Arduino/src/databus/Arduino_ESP32SPI.h:29:7: note:   candidate expects 1 argument, 11 provided
-.pio/libdeps/esp32c3/GFX Library for Arduino/src/databus/Arduino_ESP32SPI.h:29:7: note: candidate: 'constexpr Arduino_ESP32SPI::Arduino_ESP32SPI(Arduino_ESP32SPI&&)'
-.pio/libdeps/esp32c3/GFX Library for Arduino/src/databus/Arduino_ESP32SPI.h:29:7: note:   candidate expects 1 argument, 11 provided
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_hvline.c.o
+src/main.cpp: In function 'void handleSave()':
+src/main.cpp:238:57: error: no match for 'operator=' (operand types are 'Preferences' and 'String')
+   if (s_srv->hasArg("pass")) s_prefs = s_srv->arg("pass");
+                                                         ^
+In file included from src/main.cpp:7:
+/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/Preferences/src/Preferences.h:23:7: note: candidate: 'Preferences& Preferences::operator=(const Preferences&)'
+ class Preferences {
+       ^~~~~~~~~~~
+/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/Preferences/src/Preferences.h:23:7: note:   no known conversion for argument 1 from 'String' to 'const Preferences&'
+src/main.cpp: In function 'void renderClock()':
+src/main.cpp:699:15: error: expected primary-expression before '...' token
+     drawHands(...);
+               ^~~
 *** [.pio/build/esp32c3/src/main.cpp.o] Error 1
-========================= [FAILED] Took 46.30 seconds =========================
+========================= [FAILED] Took 53.96 seconds =========================
