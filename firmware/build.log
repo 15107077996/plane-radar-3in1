@@ -41,7 +41,7 @@ Collecting bitarray<4.0,>=3.0.0 (from bitstring~=4.3.1)
 Collecting pycparser (from cffi>=1.14->cryptography~=45.0.3)
   Using cached pycparser-3.12-py3-none-any.whl.metadata (9.7 kB)
 Downloading cryptography-45.0.7-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 173.4 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 73.4 MB/s  0:00:00
 Downloading ecdsa-0.19.2-py2.py3-none-any.whl (150 kB)
 Downloading bitstring-4.3.1-py3-none-any.whl (71 kB)
 Using cached reedsolo-1.7.0-py3-none-any.whl (32 kB)
@@ -71,7 +71,6 @@ Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
 Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
 Library Manager: PNGdec@1.0.1 has been installed!
 Verbose mode can be enabled via `-v, --verbose` option
-patch_png: injected probes into /home/runner/work/plane-radar-3in1/plane-radar-3in1/.pio/libdeps/esp32c3/PNGdec/src/png.inl
 CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32-c3-devkitm-1.html
 PLATFORM: Espressif 32 (6.12.0) > Espressif ESP32-C3-DevKitM-1
 HARDWARE: ESP32C3 160MHz, 320KB RAM, 4MB Flash
@@ -98,11 +97,11 @@ Compiling .pio/build/esp32c3/src/main.cpp.o
 Building .pio/build/esp32c3/bootloader.bin
 Generating partitions .pio/build/esp32c3/partitions.bin
 Compiling .pio/build/esp32c3/lib30b/SPI/SPI.cpp.o
-Compiling .pio/build/esp32c3/liba33/Wire/Wire.cpp.o
 esptool.py v4.9.0
 Creating esp32c3 image...
 Merged 1 ELF section
 Successfully created esp32c3 image.
+Compiling .pio/build/esp32c3/liba33/Wire/Wire.cpp.o
 Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_DataBus.cpp.o
 Archiving .pio/build/esp32c3/lib30b/libSPI.a
 Indexing .pio/build/esp32c3/lib30b/libSPI.a
@@ -202,8 +201,8 @@ Compiling .pio/build/esp32c3/lib062/PNGdec/PNGdec.cpp.o
 Compiling .pio/build/esp32c3/lib062/PNGdec/adler32.c.o
 Compiling .pio/build/esp32c3/lib062/PNGdec/crc32.c.o
 Archiving .pio/build/esp32c3/libb29/libGFX Library for Arduino.a
-Compiling .pio/build/esp32c3/lib062/PNGdec/infback.c.o
 Indexing .pio/build/esp32c3/libb29/libGFX Library for Arduino.a
+Compiling .pio/build/esp32c3/lib062/PNGdec/infback.c.o
 Compiling .pio/build/esp32c3/lib062/PNGdec/inffast.c.o
 Compiling .pio/build/esp32c3/lib062/PNGdec/inflate.c.o
 Compiling .pio/build/esp32c3/lib062/PNGdec/inftrees.c.o
@@ -237,17 +236,17 @@ Compiling .pio/build/esp32c3/lib1ce/WebServer/WebServer.cpp.o
 Archiving .pio/build/esp32c3/lib67b/libHTTPClient.a
 Indexing .pio/build/esp32c3/lib67b/libHTTPClient.a
 Compiling .pio/build/esp32c3/lib1ce/WebServer/detail/mimetable.cpp.o
-Compiling .pio/build/esp32c3/FrameworkArduino/Esp.cpp.o
 Archiving .pio/build/esp32c3/lib7aa/libFS.a
 Indexing .pio/build/esp32c3/lib7aa/libFS.a
+Compiling .pio/build/esp32c3/FrameworkArduino/Esp.cpp.o
 Compiling .pio/build/esp32c3/FrameworkArduino/FirmwareMSC.cpp.o
 Compiling .pio/build/esp32c3/FrameworkArduino/FunctionalInterrupt.cpp.o
 Compiling .pio/build/esp32c3/FrameworkArduino/HWCDC.cpp.o
 Compiling .pio/build/esp32c3/FrameworkArduino/HardwareSerial.cpp.o
 Compiling .pio/build/esp32c3/FrameworkArduino/IPAddress.cpp.o
-Compiling .pio/build/esp32c3/FrameworkArduino/IPv6Address.cpp.o
 Archiving .pio/build/esp32c3/lib1ce/libWebServer.a
 Indexing .pio/build/esp32c3/lib1ce/libWebServer.a
+Compiling .pio/build/esp32c3/FrameworkArduino/IPv6Address.cpp.o
 Compiling .pio/build/esp32c3/FrameworkArduino/MD5Builder.cpp.o
 Compiling .pio/build/esp32c3/FrameworkArduino/Print.cpp.o
 Compiling .pio/build/esp32c3/FrameworkArduino/Stream.cpp.o
@@ -293,8 +292,8 @@ Linking .pio/build/esp32c3/firmware.elf
 Retrieving maximum program size .pio/build/esp32c3/firmware.elf
 Checking size .pio/build/esp32c3/firmware.elf
 Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
-RAM:   [===       ]  27.6% (used 90276 bytes from 327680 bytes)
-Flash: [===       ]  32.8% (used 1032636 bytes from 3145728 bytes)
+RAM:   [===       ]  27.5% (used 90212 bytes from 327680 bytes)
+Flash: [===       ]  32.6% (used 1024368 bytes from 3145728 bytes)
 Building .pio/build/esp32c3/firmware.bin with action:
   "$PYTHONEXE" "$OBJCOPY" --chip esp32c3 elf2image --flash_mode ${__get_board_flash_mode(__env__)} --flash_freq ${__get_board_f_image(__env__)} --flash_size 4MB --elf-sha256-offset 0xb0 -o $TARGET $SOURCES
 Building .pio/build/esp32c3/firmware.bin
@@ -302,4 +301,4 @@ esptool.py v4.9.0
 Creating esp32c3 image...
 Merged 2 ELF sections
 Successfully created esp32c3 image.
-========================= [SUCCESS] Took 66.46 seconds =========================
+========================= [SUCCESS] Took 68.12 seconds =========================
