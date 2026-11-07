@@ -14,10 +14,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup PlatformIO
-        uses: platformio/setup-platformio@v5
-        with:
-          platformio-version: latest
+      - name: Install PlatformIO
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install --upgrade platformio
+          pio --version
 
       - name: Build project
         run: |
