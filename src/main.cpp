@@ -88,7 +88,7 @@
 #define DEFAULT_SSID "NKWRJ"
 #define DEFAULT_PASS "15107077996h"
 
-static const float RANGES_KM[] = {10.0f, 25.0f, 50.0f, 100.0f};
+static const float RANGES_KM[] = {25.0f, 50.0f, 100.0f, 200.0f};
 static const int   RANGE_N = sizeof(RANGES_KM) / sizeof(RANGES_KM[0]);
 
 #define MAX_PLANES 24
@@ -112,7 +112,7 @@ static Arduino_DataBus *s_bus = nullptr;
 static Arduino_GFX     *gfx   = nullptr;
 
 static int      s_screen = SCR_PLANES;
-static int      s_range  = 1;              // index into RANGES_KM
+static int      s_range  = 3;              // index into RANGES_KM (200 km by default)
 static float    s_lat    = 25.6640f;       // Nankang, Ganzhou
 static float    s_lon    = 114.7530f;
 static String   s_ssid, s_pass;
@@ -141,6 +141,7 @@ static bool     s_wxOk    = false;
 static String   s_wxMsg   = "wait";
 static unsigned long s_wxStamp = 0;
 static int      s_tileDx = 0, s_tileDy = 0;
+static bool     s_wxDry  = false;      // true while self-testing, no pixels drawn
 
 // radar beam
 static float s_sweep  = 0.0f;
@@ -442,7 +443,7 @@ static void pngRow(PNGDRAW *pDraw) {
       col = (uint16_t)(((g8 & 0xF8) << 8) | ((g8 & 0xFC) << 3) | (g8 >> 3));
     }
 
-    if (!transparent) gfx->drawPixel(tx, ty, col);
+    if (!transparent && !s_wxDry) gfx->drawPixel(tx, ty, col);
   }
   gfx->endWrite();
 }
@@ -621,7 +622,9 @@ static void saveCfg() {
 
 static void loadCfg() {
   bool ok = prefs.begin("pr3", true);
-  if (!ok) {                       // NVS empty on a fresh chip -> use built-ins
+  if (!ok) {                       // NVS empty on a fresh chip: create it, use built-ins
+    prefs.begin("pr3", false);
+    prefs.end();
     s_ssid = DEFAULT_SSID;
     s_pass = DEFAULT_PASS;
     Serial.printf("[cfg] no nvs data, using built-in wifi %s\n", DEFAULT_SSID);
@@ -689,8 +692,29 @@ static bool connectWifi() {
 }
 
 // --------------------------------------------------------------- adsb fetch --
+#define FETCH_NM 250.0f      // one wide query (~460 km); the dial crops it per range
+
+static void addPlane(const Plane &q) {
+  if (s_plN < MAX_PLANES) {
+    s_pl[s_plN++] = q;
+  } else {                            // keep the nearest MAX_PLANES only
+    int worst = 0;
+    for (int i = 1; i < s_plN; i++) if (s_pl[i].dist > s_pl[worst].dist) worst = i;
+    if (q.dist < s_pl[worst].dist) s_pl[worst] = q;
+  }
+}
+
+static void sortPlanes() {
+  for (int i = 1; i < s_plN; i++) {
+    Plane t = s_pl[i];
+    int j = i - 1;
+    while (j >= 0 && s_pl[j].dist > t.dist) { s_pl[j + 1] = s_pl[j]; j--; }
+    s_pl[j + 1] = t;
+  }
+}
+
 static void fetchPlanes() {
-  float nm = RANGES_KM[s_range] / 1.852f;
+  float nm = FETCH_NM;
   char url[128];
   snprintf(url, sizeof(url), "https://opendata.adsb.fi/api/v3/lat/%.5f/lon/%.5f/dist/%.1f",
            s_lat, s_lon, nm);
@@ -732,36 +756,46 @@ static void fetchPlanes() {
 
   s_plN = 0;
   JsonArray ac = doc["ac"].as<JsonArray>();
+  Serial.printf("[adsb] api returned %d entries\n", (int)ac.size());
   for (JsonObject p : ac) {
-    if (s_plN >= MAX_PLANES) break;
     if (p["alt_baro"].is<const char *>()) continue;          // "ground"
-    if (!p["lat"].is<float>() || !p["lon"].is<float>()) continue;
+    float la = p["lat"] | 0.0f;
+    float lo = p["lon"] | 0.0f;
+    if (la == 0.0f && lo == 0.0f) continue;                  // no position
 
-    Plane &q = s_pl[s_plN];
-    q.lat = p["lat"].as<float>();
-    q.lon = p["lon"].as<float>();
+    Plane q;
+    memset(&q, 0, sizeof(q));
+    q.lat = la;
+    q.lon = lo;
     q.altFt = p["alt_baro"] | 0;
     q.gsKt = p["gs"] | 0;
-    if (p["track"].is<float>()) { q.track = p["track"].as<float>(); q.hasTrack = true; }
-    else { q.track = 0; q.hasTrack = false; }
+    if (p["track"].is<float>() || p["track"].is<int>()) {
+      q.track = p["track"] | 0.0f;
+      q.hasTrack = true;
+    } else {
+      q.track = 0;
+      q.hasTrack = false;
+    }
     const char *cs = p["flight"] | "";
     strncpy(q.cs, cs, sizeof(q.cs) - 1);
     q.cs[sizeof(q.cs) - 1] = 0;
     for (int i = (int)strlen(q.cs) - 1; i >= 0 && q.cs[i] == ' '; i--) q.cs[i] = 0;
 
     geoToPolar(q.lat, q.lon, &q.dist, &q.brg);
-    s_plN++;
+    addPlane(q);
   }
+  sortPlanes();
   s_adsbOk = true;
   s_adsbMsg = "ok";
-  Serial.printf("[adsb] %d aircraft, heap %u\n", s_plN, (unsigned)ESP.getFreeHeap());
+  Serial.printf("[adsb] kept %d aircraft (nearest %.1f km), heap %u\n", s_plN,
+                s_plN ? s_pl[0].dist : -1.0f, (unsigned)ESP.getFreeHeap());
 }
 
 static unsigned long planePeriod() {
   float r = RANGES_KM[s_range];
-  if (r <= 10) return 6000;
   if (r <= 25) return 8000;
-  if (r <= 50) return 12000;
+  if (r <= 50) return 10000;
+  if (r <= 100) return 12000;
   return 15000;
 }
 
@@ -820,6 +854,18 @@ void setup() {
     textC("WIFI OK", 90, C_GREEN, 2);
     textC(WiFi.localIP().toString().c_str(), 120, C_GRAY, 1);
     delay(800);
+  }
+
+  // one-shot rain self test: download + decode the real tile without drawing
+  // pixels, so a broken weather page shows up in the boot log instead of later
+  if (!s_portal) {
+    Serial.println("[wxprobe] checking rainviewer tile"); Serial.flush();
+    s_wxDry = true;
+    bool wxok = fetchWeather();
+    s_wxDry = false;
+    Serial.printf("[wxprobe] %s msg=%s\n", wxok ? "OK" : "FAIL", s_wxMsg.c_str());
+    Serial.flush();
+    gfx->fillScreen(C_BLACK);
   }
 
   s_screen = SCR_PLANES;
