@@ -74,6 +74,25 @@ REPLACEMENTS = [
         '                        printf("[inf]   err=%d ain=%d aout=%d\\r\\n", (int)err, (int)d_stream.avail_in, (int)d_stream.avail_out);\n'
         "                        if ((err == Z_OK || err == Z_STREAM_END) && d_stream.avail_out == 0) {// successfully decoded line\n",
     ),
+    (
+        "                            DeFilter(pCurr, pPrev, pPage->iWidth, pPage->iPitch);\n",
+        '                            printf("[inf] preDef y=%d\\r\\n", (int)y);\n'
+        "                            DeFilter(pCurr, pPrev, pPage->iWidth, pPage->iPitch);\n"
+        '                            printf("[inf] postDef y=%d\\r\\n", (int)y);\n',
+    ),
+    (
+        "                                (*pPage->pfnDraw)(&pngd);\n",
+        '                                printf("[inf] preDraw y=%d\\r\\n", (int)y);\n'
+        "                                (*pPage->pfnDraw)(&pngd);\n"
+        '                                printf("[inf] postDraw y=%d\\r\\n", (int)y);\n',
+    ),
+    (
+        "                        // swap current and previous lines\n"
+        "                        tmp = pCurr; pCurr = pPrev; pPrev = tmp;\n",
+        "                        // swap current and previous lines\n"
+        "                        tmp = pCurr; pCurr = pPrev; pPrev = tmp;\n"
+        '                        printf("[inf] loopEnd y=%d\\r\\n", (int)y);\n',
+    ),
 ]
 
 for target in found:
