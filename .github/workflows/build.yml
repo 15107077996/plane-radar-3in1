@@ -25,12 +25,22 @@ jobs:
           set -o pipefail
           pio run 2>&1 | tee build.log
 
+      - name: Collect binaries
+        if: success()
+        run: |
+          mkdir -p out
+          cp .pio/build/esp32c3/firmware.bin out/ || true
+          cp .pio/build/esp32c3/bootloader.bin out/ || true
+          cp .pio/build/esp32c3/partitions.bin out/ || true
+          cp .pio/build/esp32c3/boot_app0.bin out/ || true
+          ls -l out
+
       - name: Upload firmware artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: firmware-bin
-          path: .pio/build/esp32c3/firmware.bin
+          path: out/*
 
       - name: Publish firmware to release
         if: success()
@@ -38,8 +48,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete fw-latest --yes --cleanup-tag || true
-          gh release create fw-latest .pio/build/esp32c3/firmware.bin \
-            --title "firmware latest" --notes "auto build from ${{ github.sha }}"
+          gh release create fw-latest out/* \
+            --title "firmware latest" --notes "merged firmware.bin -> flash at 0x0; app-only alternative: bootloader 0x0 / partitions 0x8000 / boot_app0 0xe000 / app at 0x10000"
 
       - name: Publish build log on failure
         if: failure()
