@@ -357,7 +357,7 @@ static void drawChinaFaint() {
   for (int r = 0; r < CN_RING_COUNT; r++) {
     int n = CN_RING_LEN[r];
     int px = 0, py = 0;
-    for (int i = 0; i i < n; i++) {
+    for (int i = 0; i < n; i++) {
       uint16_t qx = pgm_read_word(&CN_PTS[off + i * 2]);
       uint16_t qy = pgm_read_word(&CN_PTS[off + i * 2 + 1]);
       int x = qx / 10, y = qy / 10;
