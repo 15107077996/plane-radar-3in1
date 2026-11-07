@@ -1000,7 +1000,7 @@ static void fetchPlanes() {
   if (code != HTTP_CODE_OK) {
     http.end();
     s_adsbMsg = "HTTP" + String(code);
-    return;
+    return false;
   }
 
   // Full body is small (~15 KB here) and heap is ample; a buffered parse is
@@ -1175,7 +1175,7 @@ static void handleButton() {
 
   if (raw != rawPrev) { rawPrev = raw; lastChange = ms; }
 
-  if (ms - lastChange >= DEBOUN_MS && raw != level) {
+  if (ms - lastChange >= DEBOUNCE_MS && raw != level) {
     if (level == HIGH && raw == LOW) {        // stable press edge
       level = LOW;
       tDown = ms;
