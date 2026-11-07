@@ -418,7 +418,7 @@ static const char *WX_TILE_HOST = "http://tilecache.rainviewer.com";
 static void pngRow(PNGDRAW *pDraw) {
   static int s_rowLog = 0;
   bool doLog = (pDraw->y == 0 || pDraw->y == 1 || pDraw->y == 63 || pDraw->y == 127 ||
-                p Draw->y == 191 || pDraw->y == 255);
+                pDraw->y == 191 || pDraw->y == 255);
   if (doLog) {
     Serial.printf("[wx] row y=%d w=%d type=%d enter\n", pDraw->y, pDraw->iWidth,
                   pDraw->iPixelType);
@@ -721,7 +721,7 @@ static void handleSave() {
   if (server.hasArg("ssid")) s_ssid = server.arg("ssid");
   if (server.hasArg("pass")) s_pass = server.arg("pass");
   if (server.hasArg("lat"))  s_lat = server.arg("lat").toFloat();
-  if (server.hasArg("lon")) s_lon = server.arg("lon").toFloat();
+  if (server.hasArg("lon"))  s_lon = server.arg("lon").toFloat();
   saveCfg();
   server.send(200, "text/html; charset=utf-8",
               "<meta charset='utf-8'><body style='background:#111;color:#0f0;"
