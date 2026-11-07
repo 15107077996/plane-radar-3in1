@@ -41,7 +41,7 @@ Collecting bitarray<4.0,>=3.0.0 (from bitstring~=4.3.1)
 Collecting pycparser (from cffi>=1.14->cryptography~=45.0.3)
   Using cached pycparser-3.12-py3-none-any.whl.metadata (9.7 kB)
 Downloading cryptography-45.0.7-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 52.2 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 57.2 MB/s  0:00:00
 Downloading ecdsa-0.19.2-py2.py3-none-any.whl (150 kB)
 Downloading bitstring-4.3.1-py3-none-any.whl (71 kB)
 Using cached reedsolo-1.7.0-py3-none-any.whl (32 kB)
@@ -102,19 +102,13 @@ Creating esp32c3 image...
 Merged 1 ELF section
 Successfully created esp32c3 image.
 Compiling .pio/build/esp32c3/liba33/Wire/Wire.cpp.o
-src/main.cpp:1005:90: error: stray '\' in program
-                   millis() / 1000UL, s_screen, range=%dkm planes=%d wx=%s heap=%u wifi=%d\n",
-                                                                                          ^
-src/main.cpp:1005:92: warning: missing terminating " character
-                   millis() / 1000UL, s_screen, range=%dkm planes=%d wx=%s heap=%u wifi=%d\n",
-                                                                                            ^
-src/main.cpp:1005:92: error: missing terminating " character
-                   millis() / 1000UL, s_screen, range=%dkm planes=%d wx=%s heap=%u wifi=%d\n",
-                                                                                            ^~
 Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_DataBus.cpp.o
 Archiving .pio/build/esp32c3/lib30b/libSPI.a
 Indexing .pio/build/esp32c3/lib30b/libSPI.a
 Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_G.cpp.o
+Archiving .pio/build/esp32c3/liba33/libWire.a
+Indexing .pio/build/esp32c3/liba33/libWire.a
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_GFX.cpp.o
 src/main.cpp: In function 'void drawRings()':
 src/main.cpp:202:58: error: no matching function for call to 'Arduino_GFX::drawLine(int, int, int, int)'
    gfx->drawLine(R_CX - R_R, R_CX - R_R + 8, R_CY, C_GREEN);
@@ -134,40 +128,6 @@ In file included from .pio/libdeps/esp32c3/GFX Library for Arduino/src/Arduino_G
    void drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color);
         ^~~~~~~~
 .pio/libdeps/esp32c3/GFX Library for Arduino/src/Arduino_GFX.h:209:8: note:   candidate expects 5 arguments, 4 provided
-src/main.cpp: In function 'void startPortal()':
-src/main.cpp:736:3: error: 'begin' was not declared in this scope
-   begin();
-   ^~~~~
-src/main.cpp:736:3: note: suggested alternative:
-In file included from /home/runner/.platformio/packages/toolchain-riscv32-esp/riscv32-esp-elf/include/c++/8.4.0/string:51,
-                 from /home/runner/.platformio/packages/toolchain-riscv32-esp/riscv32-esp-elf/include/c++/8.4.0/stdexcept:39,
-                 from /home/runner/.platformio/packages/toolchain-riscv32-esp/riscv32-esp-elf/include/c++/8.4.0/array:39,
-                 from /home/runner/.platformio/packages/toolchain-riscv32-esp/riscv32-esp-elf/include/c++/8.4.0/tuple:39,
-                 from /home/runner/.platformio/packages/toolchain-riscv32-esp/riscv32-esp-elf/include/c++/8.4.0/functional:54,
-                 from /home/runner/.platformio/packages/framework-arduinoespressif32/cores/esp32/HardwareSerial.h:49,
-                 from /home/runner/.platformio/packages/framework-arduinoespressif32/cores/esp32/Arduino.h:196,
-                 from src/main.cpp:28:
-/home/runner/.platformio/packages/toolchain-riscv32-esp/riscv32-esp-elf/include/c++/8.4.0/bits/range_access.h:87:5: note:   'std::begin'
-     begin(_Tp (&__arr)[_Nm])
-     ^~~~~
-src/main.cpp: In function 'bool connectWifi()':
-src/main.cpp:776:58: error: 'attempt' was not declared in this scope
-   Serial.printf("[wifi] attempt %d failed, status=%d\n", attempt, (int)WiFi.status());
-                                                          ^~~~~~~
-src/main.cpp:776:58: note: suggested alternative: 'mktemp'
-   Serial.printf("[wifi] attempt %d failed, status=%d\n", attempt, (int)WiFi.status());
-                                                          ^~~~~~~
-                                                          mktemp
-src/main.cpp: At global scope:
-src/main.cpp:781:1: error: expected unqualified-id before 'return'
- return false;
- ^~~~~~
-src/main.cpp:782:1: error: expected declaration before '}' token
- }
- ^
-Archiving .pio/build/esp32c3/liba33/libWire.a
-Indexing .pio/build/esp32c3/liba33/libWire.a
-Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_GFX.cpp.o
 Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_GFX_Library.cpp.o
 *** [.pio/build/esp32c3/src/main.cpp.o] Error 1
-========================= [FAILED] Took 42.05 seconds =========================
+========================= [FAILED] Took 41.99 seconds =========================
