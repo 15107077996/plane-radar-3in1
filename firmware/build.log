@@ -41,7 +41,7 @@ Collecting bitarray<4.0,>=3.0.0 (from bitstring~=4.3.1)
 Collecting pycparser (from cffi>=1.14->cryptography~=45.0.3)
   Using cached pycparser-3.12-py3-none-any.whl.metadata (9.7 kB)
 Downloading cryptography-45.0.7-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 64.7 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 173.4 MB/s  0:00:00
 Downloading ecdsa-0.19.2-py2.py3-none-any.whl (150 kB)
 Downloading bitstring-4.3.1-py3-none-any.whl (71 kB)
 Using cached reedsolo-1.7.0-py3-none-any.whl (32 kB)
@@ -110,24 +110,196 @@ Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_G.cpp.o
 Archiving .pio/build/esp32c3/liba33/libWire.a
 Indexing .pio/build/esp32c3/liba33/libWire.a
 Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_GFX.cpp.o
-src/main.cpp: In function 'void drawRings()':
-src/main.cpp:203:58: error: no matching function for call to 'Arduino_GFX::drawLine(int, int, int, int)'
-   gfx->drawLine(R_CX + R_R - 8, R_CY, R_CX + R_R, C_GREEN);
-                                                          ^
-In file included from .pio/libdeps/esp32c3/GFX Library for Arduino/src/Arduino_GFX_Library.h:42,
-                 from src/main.cpp:40:
-.pio/libdeps/esp32c3/GFX Library for Arduino/src/Arduino_GFX.h:209:8: note: candidate: 'void Arduino_GFX::drawLine(int16_t, int16_t, int16_t, int16_t, uint16_t)'
-   void drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color);
-        ^~~~~~~~
-.pio/libdeps/esp32c3/GFX Library for Arduino/src/Arduino_GFX.h:209:8: note:   candidate expects 5 arguments, 4 provided
-src/main.cpp: In function 'void loadCfg()':
-src/main.cpp:689:14: error: 'DEFAULTPASS' was not declared in this scope
-     s_pass = DEFAULTPASS;
-              ^~~~~~~~~~~
-src/main.cpp:689:14: note: suggested alternative: 'DEFAULT_PASS'
-     s_pass = DEFAULTPASS;
-              ^~~~~~~~~~~
-              DEFAULT_PASS
 Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_GFX_Library.cpp.o
-*** [.pio/build/esp32c3/src/main.cpp.o] Error 1
-========================= [FAILED] Took 37.80 seconds =========================
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_TFT.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_TFT_18bit.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/canvas/Arduino_Canvas.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/canvas/Arduino_Canvas_3bit.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/canvas/Arduino_Canvas_Indexed.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/canvas/Arduino_Canvas_Mono.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_AVRPAR16.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_AVRPAR8.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_DUEPAR16.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_ESP32LCD16.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_ESP32LCD8.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_ESP32PAR16.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_ESP32PAR16Q.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_ESP32PAR16QQ.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_ESP32PAR8.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_ESP32PAR8Q.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_ESP32PAR8QQ.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_ESP32PAR8QQQ.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_ESP32QSPI.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_ESP32RGBPanel.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_ESP32S2PAR16.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_ESP32S2PAR16Q.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_ESP32S2PAR8.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_ESP32S2PAR8Q.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_ESP32SPI.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_ESP32SPIDMA.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_ESP8266SPI.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_HWSPI.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_NRFXSPI.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_RPiPicoPAR16.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_RPiPicoPAR8.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_RPiPicoSPI.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_RTLPAR8.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_STM32PAR8.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_SWPAR16.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_SWPAR8.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_SWSPI.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_UNOPAR8.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_Wire.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_XCA9554SWSPI.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_XL9535SWSPI.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/databus/Arduino_mbedSPI.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_AXS15231B.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_CO5300.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_GC9106.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_GC9107.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_GC9A01.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_HX8347C.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_HX8347D.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_HX8352C.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_HX8357A.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_HX8357B.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_HX8369A.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_ILI9225.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_ILI9331.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_ILI9341.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_ILI9342.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_ILI9481_18bit.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_ILI9486.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_ILI9486_18bit.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_ILI9488.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_ILI9488_18bit.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_ILI9488_3bit.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_ILI9806.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_JBT6K71.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_JD9613.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_NT35310.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_NT35510.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_NT39125.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_NV3023.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_NV3041A.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_OTM8009A.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_R61529.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_RGB_Display.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_RM67162.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_RM690B0.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_SEPS525.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_SH1106.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_SSD1283A.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_SSD1306.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_SSD1331.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_SSD1351.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_ST7735.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_ST7789.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_ST77916.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_ST7796.cpp.o
+Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_WEA2012.cpp.o
+Compiling .pio/build/esp32c3/lib062/PNGdec/PNGdec.cpp.o
+Compiling .pio/build/esp32c3/lib062/PNGdec/adler32.c.o
+Compiling .pio/build/esp32c3/lib062/PNGdec/crc32.c.o
+Archiving .pio/build/esp32c3/libb29/libGFX Library for Arduino.a
+Compiling .pio/build/esp32c3/lib062/PNGdec/infback.c.o
+Indexing .pio/build/esp32c3/libb29/libGFX Library for Arduino.a
+Compiling .pio/build/esp32c3/lib062/PNGdec/inffast.c.o
+Compiling .pio/build/esp32c3/lib062/PNGdec/inflate.c.o
+Compiling .pio/build/esp32c3/lib062/PNGdec/inftrees.c.o
+Compiling .pio/build/esp32c3/lib062/PNGdec/zutil.c.o
+Compiling .pio/build/esp32c3/lib989/WiFi/WiFi.cpp.o
+Compiling .pio/build/esp32c3/lib989/WiFi/WiFiAP.cpp.o
+Compiling .pio/build/esp32c3/lib989/WiFi/WiFiClient.cpp.o
+Archiving .pio/build/esp32c3/lib062/libPNGdec.a
+Indexing .pio/build/esp32c3/lib062/libPNGdec.a
+Compiling .pio/build/esp32c3/lib989/WiFi/WiFiGeneric.cpp.o
+Compiling .pio/build/esp32c3/lib989/WiFi/WiFiMulti.cpp.o
+Compiling .pio/build/esp32c3/lib989/WiFi/WiFiSTA.cpp.o
+Compiling .pio/build/esp32c3/lib989/WiFi/WiFiScan.cpp.o
+Compiling .pio/build/esp32c3/lib989/WiFi/WiFiServer.cpp.o
+Compiling .pio/build/esp32c3/lib989/WiFi/WiFiUdp.cpp.o
+Compiling .pio/build/esp32c3/lib552/WiFiClientSecure/WiFiClientSecure.cpp.o
+Compiling .pio/build/esp32c3/lib552/WiFiClientSecure/esp_crt_bundle.c.o
+Compiling .pio/build/esp32c3/lib552/WiFiClientSecure/ssl_client.cpp.o
+Compiling .pio/build/esp32c3/lib67b/HTTPClient/HTTPClient.cpp.o
+Archiving .pio/build/esp32c3/lib989/libWiFi.a
+Indexing .pio/build/esp32c3/lib989/libWiFi.a
+Compiling .pio/build/esp32c3/libe70/Preferences/Preferences.cpp.o
+Compiling .pio/build/esp32c3/lib7aa/FS/FS.cpp.o
+Archiving .pio/build/esp32c3/lib552/libWiFiClientSecure.a
+Indexing .pio/build/esp32c3/lib552/libWiFiClientSecure.a
+Compiling .pio/build/esp32c3/lib7aa/FS/vfs_api.cpp.o
+Archiving .pio/build/esp32c3/libe70/libPreferences.a
+Indexing .pio/build/esp32c3/libe70/libPreferences.a
+Compiling .pio/build/esp32c3/lib1ce/WebServer/Parsing.cpp.o
+Compiling .pio/build/esp32c3/lib1ce/WebServer/WebServer.cpp.o
+Archiving .pio/build/esp32c3/lib67b/libHTTPClient.a
+Indexing .pio/build/esp32c3/lib67b/libHTTPClient.a
+Compiling .pio/build/esp32c3/lib1ce/WebServer/detail/mimetable.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/Esp.cpp.o
+Archiving .pio/build/esp32c3/lib7aa/libFS.a
+Indexing .pio/build/esp32c3/lib7aa/libFS.a
+Compiling .pio/build/esp32c3/FrameworkArduino/FirmwareMSC.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/FunctionalInterrupt.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/HWCDC.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/HardwareSerial.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/IPAddress.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/IPv6Address.cpp.o
+Archiving .pio/build/esp32c3/lib1ce/libWebServer.a
+Indexing .pio/build/esp32c3/lib1ce/libWebServer.a
+Compiling .pio/build/esp32c3/FrameworkArduino/MD5Builder.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/Print.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/Stream.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/StreamString.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/Tone.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/USB.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/USBCDC.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/USBMSC.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/WMath.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/WString.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/base64.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/cbuf.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-adc.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-bt.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-cpu.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-dac.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-gpio.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-i2c-slave.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-i2c.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-ledc.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-matrix.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-misc.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-psram.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-rgb-led.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-rmt.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-sigmadelta.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-spi.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-time.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-timer.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-tinyusb.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-touch.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-uart.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/firmware_msc_fat.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/libb64/cdecode.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/libb64/cencode.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/main.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/stdlib_noniso.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/wiring_pulse.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/wiring_shift.c.o
+Archiving .pio/build/esp32c3/libFrameworkArduino.a
+Indexing .pio/build/esp32c3/libFrameworkArduino.a
+Linking .pio/build/esp32c3/firmware.elf
+Retrieving maximum program size .pio/build/esp32c3/firmware.elf
+Checking size .pio/build/esp32c3/firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [===       ]  27.6% (used 90276 bytes from 327680 bytes)
+Flash: [===       ]  32.8% (used 1032636 bytes from 3145728 bytes)
+Building .pio/build/esp32c3/firmware.bin with action:
+  "$PYTHONEXE" "$OBJCOPY" --chip esp32c3 elf2image --flash_mode ${__get_board_flash_mode(__env__)} --flash_freq ${__get_board_f_image(__env__)} --flash_size 4MB --elf-sha256-offset 0xb0 -o $TARGET $SOURCES
+Building .pio/build/esp32c3/firmware.bin
+esptool.py v4.9.0
+Creating esp32c3 image...
+Merged 2 ELF sections
+Successfully created esp32c3 image.
+========================= [SUCCESS] Took 66.46 seconds =========================
