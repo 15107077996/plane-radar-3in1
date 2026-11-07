@@ -81,7 +81,7 @@
 
 // ------------------------------------------------------------------ config --
 #define FW_NAME "PlaneRadar 3in1"
-#define FW_VER  "1.1.2-c3"
+#define FW_VER  "1.1.3-c3"
 #define AP_NAME "PlaneRadar-Setup"
 #define NTP1    "ntp.aliyun.com"
 #define NTP2    "cn.pool.ntp.org"
@@ -493,8 +493,10 @@ static const char *WX_TILE_HOST = "http://tilecache.rainviewer.com";
 
 // one decoded PNG row -> panel, clipped to the round dial
 static uint16_t s_wxRowBuf[256];
+static int      s_wxRows = 0;   // count of rows delivered by the decoder (all rows incl. clipped)
 
 static void pngRow(PNGDRAW *pDraw) {
+  s_wxRows++;                    // count before any early-return so clipped rows still register
   static int s_rowLog = 0;
   bool doLog = (pDraw->y == 0 || pDraw->y == 1 || pDraw->y == 63 || pDraw->y == 127 ||
                 pDraw->y == 191 || pDraw->y == 255);
@@ -691,13 +693,21 @@ static bool fetchWeather() {
   Serial.println("[wx] before decode");
   Serial.printf("[wx] loopTask stack min before decode=%u\n",
                 (unsigned)uxTaskGetStackHighWaterMark(NULL));
+  int pngH = s_png.getHeight();
+  s_wxRows = 0;
   rc = s_png.decode(NULL, 0);
-  Serial.printf("[wx] after decode rc=%d\n", rc);
+  Serial.printf("[wx] after decode rc=%d rows=%d/%d\n", rc, s_wxRows, pngH);
   s_png.close();
   Serial.println("[wx] png closed");
-  if (rc != PNG_SUCCESS) {
+  // PNGdec 1.0.1 can return PNG_DECODE_ERROR (1) on its end-of-stream chunk
+  // length check with multi-IDAT tiles even though every scanline was already
+  // delivered (the full image is on screen). A genuine early failure stops
+  // before the last row, so accepting only when ALL rows arrived is safe.
+  bool benign = (rc != PNG_SUCCESS && s_wxRows >= pngH);
+  if (benign) Serial.printf("[wx] benign end-of-stream code %d, all %d rows drawn\n", rc, pngH);
+  if (rc != PNG_SUCCESS && !benign) {
     s_wxMsg = "DEC" + String(rc);
-    Serial.printf("[wx] png decode rc=%d\n", rc);
+    Serial.printf("[wx] png decode rc=%d rows=%d/%d\n", rc, s_wxRows, pngH);
     return false;
   }
 
@@ -1165,7 +1175,7 @@ static void handleButton() {
 
   if (raw != rawPrev) { rawPrev = raw; lastChange = ms; }
 
-  if (ms - lastChange >= DEBOUNCE_MS && raw != level) {
+  if (ms - lastChange >= DEBOUN_MS && raw != level) {
     if (level == HIGH && raw == LOW) {        // stable press edge
       level = LOW;
       tDown = ms;
