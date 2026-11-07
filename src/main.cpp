@@ -81,7 +81,7 @@
 
 // ------------------------------------------------------------------ config --
 #define FW_NAME "PlaneRadar 3in1"
-#define FW_VER  "1.0.8-c3"
+#define FW_VER  "1.0.9-c3"
 #define AP_NAME "PlaneRadar-Setup"
 #define NTP1    "ntp.aliyun.com"
 #define NTP2    "cn.pool.ntp.org"
@@ -200,7 +200,7 @@ static void drawRings() {
   gfx->drawLine(R_CX, R_CY - R_R, R_CX, R_CY - R_R + 8, C_GREEN);
   gfx->drawLine(R_CX, R_CY + R_R - 8, R_CX, R_CY + R_R, C_GREEN);
   gfx->drawLine(R_CX - R_R, R_CY, R_CX - R_R + 8, R_CY, C_GREEN);
-  gfx->drawLine(R_CX + R_R - 8, R_CY, R_CX + R_R, R_CY, C_GREEN);
+  gfx->drawLine(R_CX + R_R - 8, R_CY, R_CX + R_R, C_GREEN);
 
   char b[16];
   snprintf(b, sizeof(b), "%dKM", (int)RANGES_KM[s_range]);
@@ -415,6 +415,8 @@ static const char *WX_META_URL  = "http://api.rainviewer.com/public/weather-maps
 static const char *WX_TILE_HOST = "http://tilecache.rainviewer.com";
 
 // one decoded PNG row -> panel, clipped to the round dial
+static uint16_t s_wxRowBuf[256];
+
 static void pngRow(PNGDRAW *pDraw) {
   static int s_rowLog = 0;
   bool doLog = (pDraw->y == 0 || pDraw->y == 1 || pDraw->y == 63 || pDraw->y == 127 ||
@@ -430,13 +432,16 @@ static void pngRow(PNGDRAW *pDraw) {
   uint8_t *px = pDraw->pPixels;
   int dy = ty - R_CY;
   int dy2 = dy * dy;
+  int w = pDraw->iWidth;
+  if (w > 256) w = 256;
 
-  gfx->startWrite();
-  for (int i = 0; i < pDraw->iWidth; i++) {
+  for (int i = 0; i < w; i++) {
     int tx = i + s_tileDx;
-    if (tx < 0 || tx >= LCD_W) continue;
-    int dx = tx - R_CX;
-    if (dx * dx + dy2 > R_R * R_R) continue;
+    bool visible = (tx >= 0 && tx < LCD_W);
+    if (visible) {
+      int dx = tx - R_CX;
+      if (dx * dx + dy2 > R_R * R_R) visible = false;
+    }
 
     uint16_t col = 0;
     bool transparent = false;
@@ -462,9 +467,13 @@ static void pngRow(PNGDRAW *pDraw) {
       col = (uint16_t)(((g8 & 0xF8) << 8) | ((g8 & 0xFC) << 3) | (g8 >> 3));
     }
 
-    if (!transparent && !s_wxDry) gfx->drawPixel(tx, ty, col);
+    s_wxRowBuf[i] = (!visible || transparent || s_wxDry) ? 0 : col;
   }
-  gfx->endWrite();
+  for (int i = w; i < 256; i++) s_wxRowBuf[i] = 0;
+
+  // One address window + one burst per row (vs one window per pixel previously).
+  gfx->draw16bitRGBBitmap(s_tileDx, ty, s_wxRowBuf, 256, 1);
+
   if (doLog) {
     Serial.printf("[wx] row y=%d exit\n", pDraw->y);
     Serial.flush();
@@ -677,7 +686,7 @@ static void loadCfg() {
   if (!ok) {                       // NVS empty on a fresh chip: seed it with defaults
     prefs.end();
     s_ssid = DEFAULT_SSID;
-    s_pass = DEFAULT_PASS;
+    s_pass = DEFAULTPASS;
     s_lat = DEFAULT_LAT;
     s_lon = DEFAULT_LON;
     saveCfg();                     // write keys now, later reads never log NOT_FOUND
@@ -706,7 +715,7 @@ static void handleRoot() {
   String html =
       "<html><head><meta charset='utf-8'><meta name='viewport' "
       "content='width=device-width,initial-scale=1'></head><body "
-      "style='font-family:sans-serif;background:#111;color:#eee;padding:18px'>"
+      "style='font-family: sans-serif;background:#111;color:#eee;padding:18px'>"
       "<h3>PlaneRadar 3in1 SETUP</h3><form method='POST' action='/save'>"
       "WIFI SSID (2.4G only)<br><input name='ssid' style='width:100%;padding:8px'><br><br>"
       "WIFI PASSWORD<br><input name='pass' type='password' style='width:100%;padding:8px'><br><br>"
