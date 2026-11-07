@@ -253,7 +253,7 @@ static void drawPlaneIcons() {
 }
 
 static void drawPlaneLabels() {
-  float scale = (float)R_R / RANGES_KM;
+  float scale = (float)R_R / RANGES_KM[s_range];
   int labelled = 0;
   for (int i = 0; i < s_plN && labelled < 5; i++) {
     if (!s_pl[i].cs[0]) continue;
@@ -280,7 +280,7 @@ static void drawPlaneFooter() {
 
   if (s_plN > 0) {
     int best = 0;
-    for (int i = 1; i < s_plN; i++) if (s_pl[i].dist < s_pl[best]) best = i;
+    for (int i = 1; i < s_plN; i++) if (s_pl[i].dist < s_pl[best].dist) best = i;
     char d[40];
     snprintf(d, sizeof(d), "%s %dm %dkmh", s_pl[best].cs,
              (int)(s_pl[best].altFt * 0.3048f),
@@ -418,7 +418,7 @@ static const char *WX_TILE_HOST = "http://tilecache.rainviewer.com";
 static void pngRow(PNGDRAW *pDraw) {
   static int s_rowLog = 0;
   bool doLog = (pDraw->y == 0 || pDraw->y == 1 || pDraw->y == 63 || pDraw->y == 127 ||
-                pDraw->y == 191 || pDraw->y == 255);
+                p Draw->y == 191 || pDraw->y == 255);
   if (doLog) {
     Serial.printf("[wx] row y=%d w=%d type=%d enter\n", pDraw->y, pDraw->iWidth,
                   pDraw->iPixelType);
@@ -791,8 +791,8 @@ static void addPlane(const Plane &q) {
     s_pl[s_plN++] = q;
   } else {                            // keep the nearest MAX_PLANES only
     int worst = 0;
-    for (int i = 1; i < s_plN; i++) if (s_pl[i].dist > s_pl[worst]) worst = i;
-    if (q.dist < s_pl[worst]) s_pl[worst] = q;
+    for (int i = 1; i < s_plN; i++) if (s_pl[i].dist > s_pl[worst].dist) worst = i;
+    if (q.dist < s_pl[worst].dist) s_pl[worst] = q;
   }
 }
 
@@ -971,7 +971,7 @@ void setup() {
 #ifdef PR_SELFTEST
   unsigned long t;
   t = millis(); renderClock();
-  Serial.printf("[self] rain page %lu ms\n", millis() - t); Serial.flush();
+  Serial.printf("[self] clock page %lu ms\n", millis() - t); Serial.flush();
   delay(2000);
   drawRainSkeleton();
   textC("LOADING...", R_CY + 8, C_GRAY, 1);
