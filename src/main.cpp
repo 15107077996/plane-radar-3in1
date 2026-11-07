@@ -199,8 +199,8 @@ static void drawRings() {
 
   gfx->drawLine(R_CX, R_CY - R_R, R_CX, R_CY - R_R + 8, C_GREEN);
   gfx->drawLine(R_CX, R_CY + R_R - 8, R_CX, R_CY + R_R, C_GREEN);
-  gfx->drawLine(R_CX - R_R, R_CX - R_R + 8, R_CY, C_GREEN);
-  gfx->drawLine(R_CX + R_R - 8, R_CY, R_CX + R_R, C_GREEN);
+  gfx->drawLine(R_CX - R_R, R_CY, R_CX - R_R + 8, R_CY, C_GREEN);
+  gfx->drawLine(R_CX + R_R - 8, R_CY, R_CX + R_R, R_CY, C_GREEN);
 
   char b[16];
   snprintf(b, sizeof(b), "%dKM", (int)RANGES_KM[s_range]);
@@ -339,7 +339,7 @@ static void drawChinaFaint() {
   }
   int lx = (int)(CN_OX + (s_lon - CN_LON_MIN) * CN_KX);
   int ly = (int)(CN_OY + (CN_LAT_MAX - s_lat) * CN_KY);
-  if (lx > 0 && lx < LCD_W && ly > 0 && ly < LCD_W) {
+  if (lx > 0 && lx < LCD_W && ly > 0 && ly < LCD_H) {
     gfx->fillCircle(lx, ly, 3, C_RED);
     gfx->drawCircle(lx, ly, 6, C_DKRED);
   }
@@ -988,7 +988,7 @@ static void handleButton() {
   if (now == LOW && !longFired && ms - tDown >= 900) {   // hold: next range, once
     longFired = true;
     s_range = (s_range + 1) % RANGE_N;
-    Serial.printf("[wx] hold -> range=%dkm\n", (int)RANGES_KM[s_range]);
+    Serial.printf("[ui] hold -> range=%dkm\n", (int)RANGES_KM[s_range]);
     s_screen = SCR_PLANES;
     enterPlanes();
   }
