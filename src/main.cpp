@@ -81,7 +81,7 @@
 
 // ------------------------------------------------------------------ config --
 #define FW_NAME "PlaneRadar 3in1"
-#define FW_VER  "1.1.1-c3"
+#define FW_VER  "1.1.2-c3"
 #define AP_NAME "PlaneRadar-Setup"
 #define NTP1    "ntp.aliyun.com"
 #define NTP2    "cn.pool.ntp.org"
@@ -501,7 +501,6 @@ static void pngRow(PNGDRAW *pDraw) {
   if (doLog) {
     Serial.printf("[wx] row y=%d w=%d type=%d enter\n", pDraw->y, pDraw->iWidth,
                   pDraw->iPixelType);
-    Serial.flush();
   }
   int ty = pDraw->y + s_tileDy;
   if (ty < 0 || ty >= LCD_H) return;
@@ -553,7 +552,6 @@ static void pngRow(PNGDRAW *pDraw) {
 
   if (doLog) {
     Serial.printf("[wx] row y=%d exit\n", pDraw->y);
-    Serial.flush();
     s_rowLog++;
   }
 }
@@ -593,8 +591,80 @@ static bool httpGetToBuffer(const char *url, uint8_t *buf, int cap, int *got) {
   int n = 0;
   unsigned long last = millis();
   while (http.connected()) {
-    int avail = s->available();
-    if (avail > 0) {
+   .0f, 0x0100};
+  for (int i = 0; i < 3; i++) {
+    float d = deg - BACK[i];
+    while (d < 0.0f) d += 360.0f;
+    drawBeam(d, draw ? TRAIL[i] : C_BLACK);
+  }
+  drawBeam(deg, draw ? C_GREEN : C_BLACK);
+}
+
+static uint16_t altColor(int altFt) {
+  if (altFt <= 0) return C_GRAY;
+  float km = altFt * 0.0003048f;
+  if (km < 2.0f) return C_RED;
+  if (km < 6.0f) return C_ORANGE;
+  if (km < 10.0f) return C_YELLOW;
+  return C_BLUE;
+}
+
+static void drawPlaneIcon(int x, int y, float trackDeg, bool hasTrack, uint16_t col) {
+  if (!hasTrack) {
+    gfx->fillCircle(x, y, 2, col);
+    return;
+  }
+  float a = trackDeg * 0.0174532925f;
+  const float pts[6] = {0.0f, -6.0f, -4.0f, 5.0f, 4.0f, 5.0f};
+  int px[3], py[3];
+  for (int i = 0; i < 3; i++) {
+    float x0 = pts[i * 2], y0 = pts[i * 2 + 1];
+    px[i] = x + (int)(x0 * cosf(a) - y0 * sinf(a));
+    py[i] = y + (int)(x0 * sinf(a) + y0 * cosf(a));
+  }
+  gfx->fillTriangle(px[0], py[0], px[1], py[1], px[2], py[2], col);
+}
+
+// icons only - also used every animation frame to repair what the beam erase hit
+static void drawPlaneIcons() {
+  float scale = (float)R_R / RANGES_KM[s_range];
+  for (int i = 0; i < s_plN; i++) {
+    float brg = s_pl[i].brg * 0.0174532925f;
+    float d = s_pl[i].dist * scale;
+    int x = R_CX + (int)(d * sinf(brg));
+    int y = R_CY - (int)(d * cosf(brg));
+    if ((x - R_CX) * (x - R_CX) + (y - R_CY) * (y - R_CY) > R_R * R_R) continue;
+    drawPlaneIcon(x, y, s_pl[i].track, s_pl[i].hasTrack, altColor(s_pl[i].altFt));
+  }
+}
+
+static void drawPlaneLabels() {
+  float scale = (float)R_R / RANGES_KM[s_range];
+  int labelled = 0;
+  for (int i = 0; i < s_plN && labelled < 5; i++) {
+    if (!s_pl[i].cs[0]) continue;
+    float brg = s_pl[i].brg * 0.0174532925f;
+    float d = s_pl[i].dist * scale;
+    int x = R_CX + (int)(d * sinf(brg));
+    int y = R_CY - (int)(d * cosf(brg));
+    if ((x - R_CX) * (x - R_CX) + (y - R_CY) * (y - R_CY) > R_R * R_R) continue;
+    char lb[24];
+    int altM = (int)(s_pl[i].altFt * 0.3048f);
+    if (altM > 0) snprintf(lb, sizeof(lb), "%s %dm", s_pl[i].cs, altM);
+    else          snprintf(lb, sizeof(lb), "%s", s_pl[i].cs);
+    int tx = x + 5, ty = y - 3;
+    if (tx > LCD_W - 42)0) {
+      int want = cap - n;
+      if (want <= 0) break;
+      if (avail > want) avail = want;
+      int rd = s->readBytes(buf + n, avail);
+      if (rd <= 0) break;
+      n += rd;
+      last = millis();
+      if (total > 0 && n >= total) break;
+    } else {
+      if (millis() - last > 10000) break;
+     0) {
       int want = cap - n;
       if (want <= 0) break;
       if (avail > want) avail = want;
@@ -617,22 +687,22 @@ static bool fetchWeather() {
   s_wxOk = false;
 
   IPAddress ip;
-  Serial.print("[wx] dns api.rainviewer.com ... "); Serial.flush();
+  Serial.print("[wx] dns api.rainviewer.com ... ");
   if (!WiFi.hostByName("api.rainviewer.com", ip)) {
     s_wxMsg = "DNS";
-    Serial.println("FAIL"); Serial.flush();
+    Serial.println("FAIL");
     return false;
   }
-  Serial.println(ip.toString().c_str()); Serial.flush();
+  Serial.println(ip.toString().c_str());
 
   WiFiClient c;
   HTTPClient http;
   http.setConnectTimeout(6000);
   http.setTimeout(12000);
   if (!http.begin(c, String(WX_META_URL))) { s_wxMsg = "BEGIN"; return false; }
-  Serial.println("[wx] meta GET"); Serial.flush();
+  Serial.println("[wx] meta GET");
   int code = http.GET();
-  Serial.printf("[wx] meta http %d\n", code); Serial.flush();
+  Serial.printf("[wx] meta http %d\n", code);
   if (code != HTTP_CODE_OK) {
     http.end();
     s_wxMsg = "META" + String(code);
@@ -640,7 +710,7 @@ static bool fetchWeather() {
   }
   String body = http.getString();
   http.end();
-  Serial.printf("[wx] meta body %d bytes\n", (int)body.length()); Serial.flush();
+  Serial.printf("[wx] meta body %d bytes\n", (int)body.length());
 
   JsonDocument doc;
   if (deserializeJson(doc, body)) { s_wxMsg = "JSON"; return false; }
@@ -664,7 +734,7 @@ static bool fetchWeather() {
   char url[192];
   snprintf(url, sizeof(url), "%s%s/256/%d/%d/%d/2/1_1.png", WX_TILE_HOST, path.c_str(),
            WX_ZOOM, tx, ty);
-  Serial.println(url); Serial.flush();
+  Serial.println(url);
 
   if (!s_pngData) { s_wxMsg = "NOMEM"; return false; }
   int got = 0;
@@ -682,24 +752,21 @@ static bool fetchWeather() {
 
   Serial.printf("[wx] before openRAM got=%d cap=%d heap=%u\n", got, s_pngCap,
                 (unsigned)ESP.getFreeHeap());
-  Serial.flush();
   int rc = s_png.openRAM(s_pngData, got, (PNG_DRAW_CALLBACK *)pngRow);
   Serial.printf("[wx] openRAM rc=%d w=%d h=%d type=%d bpp=%d pitch=%d\n", rc, s_png.getWidth(),
                 s_png.getHeight(), s_png.getPixelType(), s_png.getBpp(), s_png.getBufferSize());
-  Serial.flush();
   if (rc != PNG_SUCCESS) {
     s_wxMsg = "OPEN" + String(rc);
     Serial.printf("[wx] png open rc=%d\n", rc);
     return false;
   }
-  Serial.println("[wx] before decode"); Serial.flush();
+  Serial.println("[wx] before decode");
   Serial.printf("[wx] loopTask stack min before decode=%u\n",
                 (unsigned)uxTaskGetStackHighWaterMark(NULL));
-  Serial.flush();
   rc = s_png.decode(NULL, 0);
-  Serial.printf("[wx] after decode rc=%d\n", rc); Serial.flush();
+  Serial.printf("[wx] after decode rc=%d\n", rc);
   s_png.close();
-  Serial.println("[wx] png closed"); Serial.flush();
+  Serial.println("[wx] png closed");
   if (rc != PNG_SUCCESS) {
     s_wxMsg = "DEC" + String(rc);
     Serial.printf("[wx] png decode rc=%d\n", rc);
@@ -829,7 +896,7 @@ static void handleRoot() {
   String html =
       "<html><head><meta charset='utf-8'><meta name='viewport' "
       "content='width=device-width,initial-scale=1'></head><body "
-      "style='font-family:sans-serif;background:#111;color:#eee;padding:18px'>"
+      "style='font-family:sans-serif;background:#111;color:#eee;padding:18px'"
       "<h3>PlaneRadar 3in1 SETUP</h3><form method='POST' action='/save'>"
       "WIFI SSID (2.4G only)<br><input name='ssid' style='width:100%;padding:8px'><br><br>"
       "WIFI PASSWORD<br><input name='pass' type='password' style='width:100%;padding:8px'><br><br>"
@@ -860,7 +927,7 @@ static void startPortal() {
   server.on("/", handleRoot);
   server.on("/save", HTTP_POST, handleSave);
   server.begin();
-  Serial.printf("[wifi] portal AP=%s ip=%s\n", AP_NAME, WiFi.softAPIP().toString().c_str());
+  Serial.printf("[wifi] portal AP=%s ip=%s\n", AP_NAME, WiFi.softAPip().toString().c_str());
 
   gfx->fillScreen(C_BLACK);
   textC("WIFI SETUP", 60, C_CYAN, 2);
@@ -889,7 +956,6 @@ static bool connectWifi() {
 
   for (int attempt = 1; attempt <= 2; attempt++) {
     Serial.printf("[wifi] connect attempt %d to '%s'\n", attempt, s_ssid.c_str());
-    Serial.flush();
     WiFi.begin(s_ssid.c_str(), s_pass.c_str());
     unsigned long t0 = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - t0 < 10000) delay(200);
@@ -899,7 +965,6 @@ static bool connectWifi() {
       return true;
     }
     Serial.printf("[wifi] attempt %d failed, status=%d\n", attempt, (int)WiFi.status());
-    Serial.flush();
     WiFi.disconnect(true);
     delay(1000);
   }
@@ -993,7 +1058,7 @@ static void fetchPlanes() {
   http.addHeader("User-Agent", "PlaneRadar3in1/1.0");
   http.addHeader("Accept", "application/json");
   int code = http.GET();
-  Serial.printf("[adsb] http %d\n", code); Serial.flush();
+  Serial.printf("[adsb] http %d\n", code);
   if (code != HTTP_CODE_OK) {
     http.end();
     s_adsbMsg = "HTTP" + String(code);
@@ -1006,7 +1071,6 @@ static void fetchPlanes() {
   http.end();
   Serial.printf("[adsb] body %d bytes heap=%u\n", (int)body.length(),
                 (unsigned)ESP.getFreeHeap());
-  Serial.flush();
 
   JsonDocument doc;
   DeserializationError err = deserializeJson(doc, body);
@@ -1063,16 +1127,16 @@ static unsigned long planePeriod() {
 
 // ==================================================================== boot ===
 static bool initDisplay() {
-  Serial.println("[lcd] step1: create SPI bus"); Serial.flush();
+  Serial.println("[lcd] step1: create SPI bus");
   s_bus = new Arduino_ESP32SPI(PIN_DC, PIN_CS, PIN_SCLK, PIN_MOSI);
-  Serial.println("[lcd] step2: create GC9A01 panel"); Serial.flush();
-  Arduino_GC9A01 *panel = new Arduino_GC9A01(s_bus, PIN_RST, 0, false);
+  Serial.println("[lcd] step2: create GC9A01 panel");
+  Arduino_GC9A01 *panel = new Arduino_GC9A01(s_bus, PIN_RST, 0, true);
   gfx = panel;
-  Serial.println("[lcd] step3: gfx->begin()"); Serial.flush();
+  Serial.println("[lcd] step3: gfx->begin()");
   bool ok = gfx->begin(SPI_HZ);
-  Serial.println("[lcd] step4: begin returned"); Serial.flush();
+  Serial.println("[lcd] step4: begin returned");
   gfx->fillScreen(C_BLACK);
-  Serial.println("[lcd] step5: screen cleared"); Serial.flush();
+  Serial.println("[lcd] step5: screen cleared");
   return ok;
 }
 
@@ -1089,7 +1153,6 @@ static void diagTask(void *) {
     Serial.printf("[diag] n=%u heap=%u diagStackMin=%u\n", cnt++,
                   (unsigned)ESP.getFreeHeap(),
                   (unsigned)uxTaskGetStackHighWaterMark(NULL));
-    Serial.flush();
     vTaskDelay(pdMS_TO_TICKS(2000));
   }
 }
@@ -1101,37 +1164,33 @@ void setup() {
   Serial.println("=== " FW_NAME " " FW_VER " ===");
   Serial.printf("[boot] pins MOSI=%d SCLK=%d CS=%d DC=%d RST=%d KEY=%d\n",
                 PIN_MOSI, PIN_SCLK, PIN_CS, PIN_DC, PIN_RST, PIN_BTN);
-  Serial.flush();
 
   pinMode(PIN_BTN, INPUT_PULLUP);
 
   xTaskCreate(diagTask, "diag", 2560, nullptr, 3, nullptr);
 
-  Serial.println("[boot] load config"); Serial.flush();
+  Serial.println("[boot] load config");
   loadCfg();
-  Serial.println("[boot] config loaded, display next"); Serial.flush();
+  Serial.println("[boot] config loaded, display next");
   bool dispOk = initDisplay();
   Serial.printf("[lcd] GC9A01 init %s, heap %u\n", dispOk ? "OK" : "FAIL",
                 (unsigned)ESP.getFreeHeap());
-  Serial.flush();
 
   textC(FW_NAME, 100, C_CYAN, 1);
   textC(FW_VER, 116, C_GRAY, 1);
   textC("BOOTING", 134, C_GREEN, 1);
 
   allocPngBuffer();
-  Serial.flush();
 
-  Serial.println("[wifi] trying to join saved network"); Serial.flush();
+  Serial.println("[wifi] trying to join saved network");
   if (!connectWifi()) {
-    Serial.println("[wifi] join failed, starting setup AP"); Serial.flush();
+    Serial.println("[wifi] join failed, starting setup AP");
     startPortal();
   } else {
     Serial.printf("[wifi] connected %s ip=%s rssi=%d\n", s_ssid.c_str(),
                   WiFi.localIP().toString().c_str(), WiFi.RSSI());
-    Serial.println("[geo] locating by egress IP..."); Serial.flush();
+    Serial.println("[geo] locating by egress IP...");
     if (!locateByIp()) Serial.println("[geo] locate failed, keeping stored centre");
-    Serial.flush();
     configTzTime("CST-8", NTP1, NTP2);
   }
 
@@ -1141,49 +1200,65 @@ void setup() {
 #ifdef PR_SELFTEST
   unsigned long t;
   t = millis(); renderClock();
-  Serial.printf("[self] clock page %lu ms\n", millis() - t); Serial.flush();
+  Serial.printf("[self] clock page %lu ms\n", millis() - t);
   delay(2000);
   drawRainSkeleton();
   textC("LOADING...", R_CY + 8, C_GRAY, 1);
   t = millis(); bool wok = fetchWeather();
   Serial.printf("[self] rain page %lu ms ok=%d msg=%s\n", millis() - t, (int)wok,
-                s_wxMsg.c_str()); Serial.flush();
+                s_wxMsg.c_str());
   if (wok) drawRainFrame(); else drawRainFail();
   delay(2500);
   t = millis(); s_screen = SCR_PLANES; enterPlanes();
-  Serial.printf("[self] plane page %lu ms\n", millis() - t); Serial.flush();
+  Serial.printf("[self] plane page %lu ms\n", millis() - t);
   delay(2000);
 #endif
-  Serial.println("[boot] setup done"); Serial.flush();
+  Serial.println("[boot] setup done");
 }
 
+// Single BOOT key with explicit debounce. A stable press whose release happens
+// before HOLD_MS advances the page (short press); holding through HOLD_MS
+// changes the range once. The debounced level makes edges bounce-proof and
+// reliable even when the page loop polls this function only every few hundred ms.
 static void handleButton() {
-  static bool last = HIGH;
+  const unsigned long DEBOUNCE_MS = 20;
+  const unsigned long HOLD_MS     = 900;
+
+  static bool          rawPrev = HIGH;
+  static bool          level   = HIGH;      // last stable, debounced level
+  static unsigned long lastChange = 0;
   static unsigned long tDown = 0;
-  static bool longFired = false;
-  bool now = digitalRead(PIN_BTN);
+  static bool          longFired = false;
+
+  bool raw = digitalRead(PIN_BTN);
   unsigned long ms = millis();
 
-  if (last == HIGH && now == LOW) {          // press
-    tDown = ms;
-    longFired = false;
-  } else if (last == LOW && now == HIGH) {   // release before the hold threshold
-    if (!longFired && ms - tDown >= 30) {    // => next screen (no upper limit!)
-      s_screen = (s_screen + 1) % 3;
-      Serial.printf("[ui] press %lu ms -> screen=%d\n", ms - tDown, s_screen);
-      if (s_screen == SCR_PLANES) enterPlanes();
-      else if (s_screen == SCR_WEATHER) enterWeather();
-      else renderClock();
+  if (raw != rawPrev) { rawPrev = raw; lastChange = ms; }
+
+  if (ms - lastChange >= DEBOUNCE_MS && raw != level) {
+    if (level == HIGH && raw == LOW) {        // stable press edge
+      level = LOW;
+      tDown = ms;
+      longFired = false;
+    } else if (level == LOW && raw == HIGH) { // stable release edge
+      level = HIGH;
+      if (!longFired) {                      // short press => next screen
+        s_screen = (s_screen + 1) % 3;
+        Serial.printf("[ui] tap -> screen=%d\n", s_screen);
+        if (s_screen == SCR_PLANES) enterPlanes();
+        else if (s_screen == SCR_WEATHER) enterWeather();
+        else renderClock();
+      }
     }
   }
-  if (now == LOW && !longFired && ms - tDown >= 900) {   // hold: next range, once
-    longFired = true;
+
+  if (level == LOW && !longFired && ms - tDown >= HOLD_MS) {
+    longFired = true;                        // hold => next range, once
     s_range = (s_range + 1) % RANGE_N;
     Serial.printf("[ui] hold -> range=%dkm\n", (int)RANGES_KM[s_range]);
     s_screen = SCR_PLANES;
     enterPlanes();
   }
-  last = now;
 }
 
 void loop() {
@@ -1193,7 +1268,6 @@ void loop() {
     Serial.printf("[hb] up=%lus screen=%d range=%dkm planes=%d wx=%s heap=%u wifi=%d\n",
                   millis() / 1000UL, s_screen, (int)RANGES_KM[s_range], s_plN,
                   s_wxMsg.c_str(), (unsigned)ESP.getFreeHeap(), (int)WiFi.status());
-    Serial.flush();
   }
 
   if (s_portal) {
@@ -1205,12 +1279,11 @@ void loop() {
   // one-shot rain check, 20 s after boot, never in the setup path
   if (!s_wxProbeDone && millis() > 20000UL) {
     s_wxProbeDone = true;
-    Serial.println("[wxprobe] checking rainviewer tile"); Serial.flush();
+    Serial.println("[wxprobe] checking rainviewer tile");
     s_wxDry = true;
     bool wxok = fetchWeather();
     s_wxDry = false;
     Serial.printf("[wxprobe] %s msg=%s\n", wxok ? "OK" : "FAIL", s_wxMsg.c_str());
-    Serial.flush();
   }
 
   // Open-Meteo clock weather: first fix ~15 s after boot, then every 10 min;
@@ -1223,7 +1296,6 @@ void loop() {
     bool omok = fetchOpenMeteo();
     s_omStamp = millis();
     Serial.printf("[om] %s\n", omok ? "updated" : "failed, retry later");
-    Serial.flush();
     if (s_screen == SCR_CLOCK) drawClockWeather();
   }
 
