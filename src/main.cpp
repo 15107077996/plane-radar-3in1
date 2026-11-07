@@ -17,8 +17,8 @@
 //     (only the beam and plane icons are repainted per frame) => no flicker.
 //   * Rain tiles are PNG-decoded line by line and clipped to the dial circle,
 //     so no 115KB overlay buffer is needed.
-//   * First boot: joins AP "PlaneRadar-Setup", open http://192.168.4.1 to set
-//     WiFi (2.4G only) + latitude/longitude. Values are kept in NVS.
+//   * WiFi NKWRJ is built in; the AP "PlaneRadar-Setup" (http://192.168.4.1)
+//     is only started when joining that network fails.
 // =============================================================================
 
 #include <Arduino.h>
@@ -82,6 +82,11 @@
 #define AP_NAME "PlaneRadar-Setup"
 #define NTP1    "ntp.aliyun.com"
 #define NTP2    "cn.pool.ntp.org"
+
+// built-in WiFi, used when NVS has nothing saved yet (fresh chip) - the config
+// portal still works if joining this network fails
+#define DEFAULT_SSID "NKWRJ"
+#define DEFAULT_PASS "15107077996h"
 
 static const float RANGES_KM[] = {10.0f, 25.0f, 50.0f, 100.0f};
 static const int   RANGE_N = sizeof(RANGES_KM) / sizeof(RANGES_KM[0]);
@@ -603,7 +608,10 @@ static void enterWeather() {
 
 // ------------------------------------------------------------------ network --
 static void saveCfg() {
-  prefs.begin("pr3", false);
+  if (!prefs.begin("pr3", false)) {
+    Serial.println("[cfg] nvs open for write failed");
+    return;
+  }
   prefs.putString("ssid", s_ssid);
   prefs.putString("pass", s_pass);
   prefs.putFloat("lat", s_lat);
@@ -612,12 +620,19 @@ static void saveCfg() {
 }
 
 static void loadCfg() {
-  prefs.begin("pr3", true);
-  s_ssid = prefs.getString("ssid", "");
-  s_pass = prefs.getString("pass", "");
+  bool ok = prefs.begin("pr3", true);
+  if (!ok) {                       // NVS empty on a fresh chip -> use built-ins
+    s_ssid = DEFAULT_SSID;
+    s_pass = DEFAULT_PASS;
+    Serial.printf("[cfg] no nvs data, using built-in wifi %s\n", DEFAULT_SSID);
+    return;
+  }
+  s_ssid = prefs.getString("ssid", DEFAULT_SSID);
+  s_pass = prefs.getString("pass", DEFAULT_PASS);
   s_lat = prefs.getFloat("lat", s_lat);
   s_lon = prefs.getFloat("lon", s_lon);
   prefs.end();
+  Serial.printf("[cfg] nvs ssid='%s' lat=%.4f lon=%.4f\n", s_ssid.c_str(), s_lat, s_lon);
 }
 
 static void handleRoot() {
