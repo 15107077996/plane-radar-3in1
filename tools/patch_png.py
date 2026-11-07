@@ -49,7 +49,7 @@ REPLACEMENTS = [
         "                        iBytesRead = (*pPage->pfnRead)(&pPage->PNGFile, pPage->ucFileBuf, (iLen > PNG_FILE_BUF_SIZE) ? PNG_FILE_BUF_SIZE : iLen);\n"
         "                        iFileOffset += iBytesRead;\n"
         "                        iOffset = 0;\n"
-        '                        printf("[inf] readRAM got=%d iLen=%d\r\n", (int)iBytesRead, (int)iLen);\n'
+        '                        printf("[inf] readRAM got=%d iLen=%d\\r\\n", (int)iBytesRead, (int)iLen);\n'
         "                    } else {\n",
     ),
     (
@@ -69,9 +69,9 @@ REPLACEMENTS = [
         "                            d_stream.next_out = pCurr;\n"
         "                        } // otherwise it could be a continuation of an unfinished line\n"
         "                        g_pngInflateCalls++;\n"
-        '                        printf("[inf] #%lu y=%d ain=%d aout=%d\r\n", (unsigned long)g_pngInflateCalls, (int)y, (int)d_stream.avail_in, (int)d_stream.avail_out);\n'
+        '                        printf("[inf] #%lu y=%d ain=%d aout=%d\\r\\n", (unsigned long)g_pngInflateCalls, (int)y, (int)d_stream.avail_in, (int)d_stream.avail_out);\n'
         "                        err = inflate(&d_stream, Z_NO_FLUSH, iOptions & PNG_CHECK_CRC);\n"
-        '                        printf("[inf]   err=%d ain=%d aout=%d\r\n", (int)err, (int)d_stream.avail_in, (int)d_stream.avail_out);\n'
+        '                        printf("[inf]   err=%d ain=%d aout=%d\\r\\n", (int)err, (int)d_stream.avail_in, (int)d_stream.avail_out);\n'
         "                        if ((err == Z_OK || err == Z_STREAM_END) && d_stream.avail_out == 0) {// successfully decoded line\n",
     ),
 ]
