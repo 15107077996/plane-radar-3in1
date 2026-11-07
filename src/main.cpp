@@ -21,8 +21,8 @@
 //     80, so the weather path needs no TLS at all (no handshake stalls, ~45 KB
 //     heap saved). adsb.fi redirects to HTTPS, so only the plane query uses TLS
 //     and its handshake is capped at 6 s (WiFiClientSecure takes seconds).
-//   * Default centre is Guangzhou Baiyun airport for bench testing; the config
-//     portal can move it anywhere.
+//   * The centre is auto-located from the WiFi egress IP (ip-api.com, plain
+//     HTTP); on failure it falls back to the stored centre or Guangzhou Baiyun.
 // =============================================================================
 
 #include <Arduino.h>
@@ -81,7 +81,7 @@
 
 // ------------------------------------------------------------------ config --
 #define FW_NAME "PlaneRadar 3in1"
-#define FW_VER  "1.0.9-c3"
+#define FW_VER  "1.1.0-c3"
 #define AP_NAME "PlaneRadar-Setup"
 #define NTP1    "ntp.aliyun.com"
 #define NTP2    "cn.pool.ntp.org"
@@ -90,7 +90,7 @@
 #define DEFAULT_SSID "NKWRJ"
 #define DEFAULT_PASS "15107077996h"
 
-// default position: Guangzhou Baiyun Intl (ZGGG)
+// fallback position: Guangzhou Baiyun Intl (ZGGG)
 #define DEFAULT_LAT 23.3924f
 #define DEFAULT_LON 113.2988f
 #define CFG_VER 105        // bumping this re-seeds the stored lat/lon once
@@ -269,7 +269,7 @@ static void drawPlaneLabels() {
     int tx = x + 5, ty = y - 3;
     if (tx > LCD_W - 42) tx = x - 5 - (int)strlen(lb) * 6;
     if (ty < 20) ty = 20;
-    if (ty > LCD_W - 14) ty = LCD_W - 14;
+    if (ty > LCD_H - 14) ty = LCD_H - 14;
     textAt(lb, tx, ty, C_WHITE, 1);
     labelled++;
   }
@@ -339,7 +339,7 @@ static void drawChinaFaint() {
   }
   int lx = (int)(CN_OX + (s_lon - CN_LON_MIN) * CN_KX);
   int ly = (int)(CN_OY + (CN_LAT_MAX - s_lat) * CN_KY);
-  if (lx > 0 && lx < LCD_W && ly > 0 && ly < LCD_W) {
+  if (lx > 0 && lx < LCD_W && ly > 0 && ly < LCD_H) {
     gfx->fillCircle(lx, ly, 3, C_RED);
     gfx->drawCircle(lx, ly, 6, C_DKRED);
   }
@@ -427,7 +427,7 @@ static void pngRow(PNGDRAW *pDraw) {
     Serial.flush();
   }
   int ty = pDraw->y + s_tileDy;
-  if (ty < 0 || ty >= LCD_W) return;
+  if (ty < 0 || ty >= LCD_H) return;
   int iPixelType = pDraw->iPixelType;
   uint8_t *px = pDraw->pPixels;
   int dy = ty - R_CY;
@@ -697,7 +697,7 @@ static void loadCfg() {
   s_ssid = prefs.getString("ssid", DEFAULT_SSID);
   s_pass = prefs.getString("pass", DEFAULT_PASS);
   int ver = prefs.getInt("ver", 0);
-  if (ver < CFG_VER) {             // older layout: force the new bench-test centre
+  if (ver < CFG_VER) {             // older layout: force the fallback centre
     s_lat = DEFAULT_LAT;
     s_lon = DEFAULT_LON;
     Serial.println("[cfg] cfg version bumped, centre reset to Baiyun");
@@ -722,7 +722,7 @@ static void handleRoot() {
       "LATITUDE<br><input name='lat' style='width:100%;padding:8px'><br><br>"
       "LONGITUDE<br><input name='lon' style='width:100%;padding:8px'><br><br>"
       "<button style='padding:12px 28px;font-size:16px'>SAVE + REBOOT</button></form>"
-      "<p style='color:#888'>default 23.3924 / 113.2988 (Baiyun)</p></body></html>";
+      "<p style='color:#888'>auto geo-locate via WiFi egress IP; fallback Baiyun</p></body></html>";
   server.send(200, "text/html; charset=utf-8", html);
 }
 
@@ -768,7 +768,7 @@ static bool connectWifi() {
     Serial.printf("[wifi]   %-20s rssi=%d ch=%d\n", WiFi.SSID(i).c_str(), WiFi.RSSI(i),
                   WiFi.channel(i));
     if (WiFi.SSID(i) == s_ssid) hits++;
-  }
+    }
   WiFi.scanDelete();
   if (hits == 0) Serial.printf("[wifi] target '%s' NOT in scan (2.4G band off or hidden)\n",
                                s_ssid.c_str());
@@ -790,6 +790,56 @@ static bool connectWifi() {
     delay(1000);
   }
   return false;
+}
+
+// Locate the device from the WiFi egress IP (plain HTTP, no TLS). On success it
+// updates s_lat/s_lon and persists them; on failure it leaves the current
+// centre untouched (Baiyun on first boot, or the last good fix), so there is
+// always a usable centre. The same coordinates drive both the plane query and
+// the rain tiles.
+static bool locateByIp() {
+  const char *url = "http://ip-api.com/json/?fields=status,message,city,lat,lon";
+  WiFiClient c;
+  HTTPClient http;
+  http.setConnectTimeout(6000);
+  http.setTimeout(8000);
+  if (!http.begin(c, String(url))) {
+    Serial.println("[geo] begin failed");
+    return false;
+  }
+  http.addHeader("User-Agent", "PlaneRadar3in1/1.0");
+  int code = http.GET();
+  if (code != HTTP_CODE_OK) {
+    Serial.printf("[geo] http %d\n", code);
+    http.end();
+    return false;
+  }
+  String body = http.getString();
+  http.end();
+
+  JsonDocument doc;
+  if (deserializeJson(doc, body)) {
+    Serial.println("[geo] json fail");
+    return false;
+  }
+  String st = doc["status"] | "fail";
+  if (st != "success") {
+    Serial.printf("[geo] server status=%s msg=%s\n", st.c_str(),
+                  (const char *)(doc["message"] | ""));
+    return false;
+  }
+  float la = doc["lat"] | 0.0f;
+  float lo = doc["lon"] | 0.0f;
+  if (la == 0.0f && lo == 0.0f) {
+    Serial.println("[geo] no coordinates");
+    return false;
+  }
+  String city = doc["city"] | "";
+  s_lat = la;
+  s_lon = lo;
+  saveCfg();
+  Serial.printf("[geo] located '%s' lat=%.4f lon=%.4f (saved)\n", city.c_str(), s_lat, s_lon);
+  return true;
 }
 
 // --------------------------------------------------------------- adsb fetch --
@@ -965,6 +1015,9 @@ void setup() {
   } else {
     Serial.printf("[wifi] connected %s ip=%s rssi=%d\n", s_ssid.c_str(),
                   WiFi.localIP().toString().c_str(), WiFi.RSSI());
+    Serial.println("[geo] locating by egress IP..."); Serial.flush();
+    if (!locateByIp()) Serial.println("[geo] locate failed, keeping stored centre");
+    Serial.flush();
     configTzTime("CST-8", NTP1, NTP2);
   }
 
@@ -985,7 +1038,6 @@ void setup() {
   delay(2500);
   t = millis(); s_screen = SCR_PLANES; enterPlanes();
   Serial.printf("[self] plane page %lu ms\n", millis() - t); Serial.flush();
-  delay(2000);
   delay(2000);
 #endif
   Serial.println("[boot] setup done"); Serial.flush();
