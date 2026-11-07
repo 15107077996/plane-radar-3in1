@@ -41,7 +41,7 @@ Collecting bitarray<4.0,>=3.0.0 (from bitstring~=4.3.1)
 Collecting pycparser (from cffi>=1.14->cryptography~=45.0.3)
   Using cached pycparser-3.12-py3-none-any.whl.metadata (9.7 kB)
 Downloading cryptography-45.0.7-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 25.8 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 79.0 MB/s  0:00:00
 Downloading ecdsa-0.19.2-py2.py3-none-any.whl (150 kB)
 Downloading bitstring-4.3.1-py3-none-any.whl (71 kB)
 Using cached reedsolo-1.7.0-py3-none-any.whl (32 kB)
@@ -201,62 +201,105 @@ Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_WEA2
 Compiling .pio/build/esp32c3/lib062/PNGdec/PNGdec.cpp.o
 Compiling .pio/build/esp32c3/lib062/PNGdec/adler32.c.o
 Compiling .pio/build/esp32c3/lib062/PNGdec/crc32.c.o
-Archiving .pio/build/esp32c3/libb29/libGFX Library for Arduino.a
-Indexing .pio/build/esp32c3/libb29/libGFX Library for Arduino.a
-In file included from .pio/libdeps/esp32c3/PNGdec/src/PNGdec.cpp:29:
-.pio/libdeps/esp32c3/PNGdec/src/png.inl:754:32: warning: missing terminating " character
-                         printf("[inf] readRAM got=%d iLen=%d
-                                ^
-.pio/libdeps/esp32c3/PNGdec/src/png.inl:754:32: error: missing terminating " character
-                         printf("[inf] readRAM got=%d iLen=%d
-                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.pio/libdeps/esp32c3/PNGdec/src/png.inl:755:1: warning: missing terminating " character
- ", (int)iBytesRead, (int)iLen);
- ^
-.pio/libdeps/esp32c3/PNGdec/src/png.inl:755:1: error: missing terminating " character
- ", (int)iBytesRead, (int)iLen);
- ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.pio/libdeps/esp32c3/PNGdec/src/png.inl:778:32: warning: missing terminating " character
-                         printf("[inf] #%lu y=%d ain=%d aout=%d
-                                ^
-.pio/libdeps/esp32c3/PNGdec/src/png.inl:778:32: error: missing terminating " character
-                         printf("[inf] #%lu y=%d ain=%d aout=%d
-                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.pio/libdeps/esp32c3/PNGdec/src/png.inl:779:1: warning: missing terminating " character
- ", (unsigned long)g_pngInflateCalls, (int)y, (int)d_stream.avail_in, (int)d_stream.avail_out);
- ^
-.pio/libdeps/esp32c3/PNGdec/src/png.inl:779:1: error: missing terminating " character
- ", (unsigned long)g_pngInflateCalls, (int)y, (int)d_stream.avail_in, (int)d_stream.avail_out);
- ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.pio/libdeps/esp32c3/PNGdec/src/png.inl:781:32: warning: missing terminating " character
-                         printf("[inf]   err=%d ain=%d aout=%d
-                                ^
-.pio/libdeps/esp32c3/PNGdec/src/png.inl:781:32: error: missing terminating " character
-                         printf("[inf]   err=%d ain=%d aout=%d
-                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.pio/libdeps/esp32c3/PNGdec/src/png.inl:782:1: warning: missing terminating " character
- ", (int)err, (int)d_stream.avail_in, (int)d_stream.avail_out);
- ^
-.pio/libdeps/esp32c3/PNGdec/src/png.inl:782:1: error: missing terminating " character
- ", (int)err, (int)d_stream.avail_in, (int)d_stream.avail_out);
- ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Compiling .pio/build/esp32c3/lib062/PNGdec/infback.c.o
 Compiling .pio/build/esp32c3/lib062/PNGdec/inffast.c.o
+Archiving .pio/build/esp32c3/libb29/libGFX Library for Arduino.a
 Compiling .pio/build/esp32c3/lib062/PNGdec/inflate.c.o
+Indexing .pio/build/esp32c3/libb29/libGFX Library for Arduino.a
 Compiling .pio/build/esp32c3/lib062/PNGdec/inftrees.c.o
-.pio/libdeps/esp32c3/PNGdec/src/png.inl: In function 'int DecodePNG(PNGIMAGE*, void*, int)':
-.pio/libdeps/esp32c3/PNGdec/src/png.inl:756:21: error: expected primary-expression before '}' token
-                     } else {
-                     ^
-.pio/libdeps/esp32c3/PNGdec/src/png.inl:780:87: error: expected ')' before ';' token
-                         err = inflate(&d_stream, Z_NO_FLUSH, iOptions & PNG_CHECK_CRC);
-                                                                                       ^
-                                                                                       )
-.pio/libdeps/esp32c3/PNGdec/src/png.inl:778:31: note: to match this '('
-                         printf("[inf] #%lu y=%d ain=%d aout=%d
-                               ^
-.pio/libdeps/esp32c3/PNGdec/src/png.inl:783:25: error: expected primary-expression before 'if'
-                         if ((err == Z_OK || err == Z_STREAM_END) && d_stream.avail_out == 0) {// successfully decoded line
-                         ^~
-*** [.pio/build/esp32c3/lib062/PNGdec/PNGdec.cpp.o] Error 1
-========================= [FAILED] Took 52.71 seconds =========================
+Compiling .pio/build/esp32c3/lib062/PNGdec/zutil.c.o
+Compiling .pio/build/esp32c3/lib989/WiFi/WiFi.cpp.o
+Archiving .pio/build/esp32c3/lib062/libPNGdec.a
+Compiling .pio/build/esp32c3/lib989/WiFi/WiFiAP.cpp.o
+Indexing .pio/build/esp32c3/lib062/libPNGdec.a
+Compiling .pio/build/esp32c3/lib989/WiFi/WiFiClient.cpp.o
+Compiling .pio/build/esp32c3/lib989/WiFi/WiFiGeneric.cpp.o
+Compiling .pio/build/esp32c3/lib989/WiFi/WiFiMulti.cpp.o
+Compiling .pio/build/esp32c3/lib989/WiFi/WiFiSTA.cpp.o
+Compiling .pio/build/esp32c3/lib989/WiFi/WiFiScan.cpp.o
+Compiling .pio/build/esp32c3/lib989/WiFi/WiFiServer.cpp.o
+Compiling .pio/build/esp32c3/lib989/WiFi/WiFiUdp.cpp.o
+Compiling .pio/build/esp32c3/lib552/WiFiClientSecure/WiFiClientSecure.cpp.o
+Compiling .pio/build/esp32c3/lib552/WiFiClientSecure/esp_crt_bundle.c.o
+Compiling .pio/build/esp32c3/lib552/WiFiClientSecure/ssl_client.cpp.o
+Compiling .pio/build/esp32c3/lib67b/HTTPClient/HTTPClient.cpp.o
+Archiving .pio/build/esp32c3/lib989/libWiFi.a
+Indexing .pio/build/esp32c3/lib989/libWiFi.a
+Compiling .pio/build/esp32c3/libe70/Preferences/Preferences.cpp.o
+Compiling .pio/build/esp32c3/lib7aa/FS/FS.cpp.o
+Archiving .pio/build/esp32c3/lib552/libWiFiClientSecure.a
+Indexing .pio/build/esp32c3/lib552/libWiFiClientSecure.a
+Compiling .pio/build/esp32c3/lib7aa/FS/vfs_api.cpp.o
+Archiving .pio/build/esp32c3/libe70/libPreferences.a
+Indexing .pio/build/esp32c3/libe70/libPreferences.a
+Compiling .pio/build/esp32c3/lib1ce/WebServer/Parsing.cpp.o
+Compiling .pio/build/esp32c3/lib1ce/WebServer/WebServer.cpp.o
+Archiving .pio/build/esp32c3/lib67b/libHTTPClient.a
+Indexing .pio/build/esp32c3/lib67b/libHTTPClient.a
+Compiling .pio/build/esp32c3/lib1ce/WebServer/detail/mimetable.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/Esp.cpp.o
+Archiving .pio/build/esp32c3/lib7aa/libFS.a
+Indexing .pio/build/esp32c3/lib7aa/libFS.a
+Compiling .pio/build/esp32c3/FrameworkArduino/FirmwareMSC.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/FunctionalInterrupt.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/HWCDC.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/HardwareSerial.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/IPAddress.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/IPv6Address.cpp.o
+Archiving .pio/build/esp32c3/lib1ce/libWebServer.a
+Indexing .pio/build/esp32c3/lib1ce/libWebServer.a
+Compiling .pio/build/esp32c3/FrameworkArduino/MD5Builder.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/Print.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/Stream.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/StreamString.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/Tone.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/USB.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/USBCDC.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/USBMSC.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/WMath.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/WString.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/base64.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/cbuf.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-adc.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-bt.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-cpu.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-dac.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-gpio.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-i2c-slave.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-i2c.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-ledc.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-matrix.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-misc.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-psram.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-rgb-led.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-rmt.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-sigmadelta.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-spi.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-time.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-timer.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-tinyusb.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-touch.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/esp32-hal-uart.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/firmware_msc_fat.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/libb64/cdecode.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/libb64/cencode.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/main.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/stdlib_noniso.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/wiring_pulse.c.o
+Compiling .pio/build/esp32c3/FrameworkArduino/wiring_shift.c.o
+Archiving .pio/build/esp32c3/libFrameworkArduino.a
+Indexing .pio/build/esp32c3/libFrameworkArduino.a
+Linking .pio/build/esp32c3/firmware.elf
+Retrieving maximum program size .pio/build/esp32c3/firmware.elf
+Checking size .pio/build/esp32c3/firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [===       ]  27.4% (used 89764 bytes from 327680 bytes)
+Flash: [===       ]  32.8% (used 1032436 bytes from 3145728 bytes)
+Building .pio/build/esp32c3/firmware.bin with action:
+  "$PYTHONEXE" "$OBJCOPY" --chip esp32c3 elf2image --flash_mode ${__get_board_flash_mode(__env__)} --flash_freq ${__get_board_f_image(__env__)} --flash_size 4MB --elf-sha256-offset 0xb0 -o $TARGET $SOURCES
+Building .pio/build/esp32c3/firmware.bin
+esptool.py v4.9.0
+Creating esp32c3 image...
+Merged 2 ELF sections
+Successfully created esp32c3 image.
+========================= [SUCCESS] Took 52.40 seconds =========================
