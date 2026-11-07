@@ -876,7 +876,7 @@ static bool connectWifi() {
   for (int i = 0; i < found; i++) {
     Serial.printf("[wifi]   %-20s rssi=%d ch=%d\n", WiFi.SSID(i).c_str(), WiFi.RSSI(i),
                   WiFi.channel(i));
-    http.end();
+    if (WiFi.SSID(i) == s_ssid) hits++;
   }
   WiFi.scanDelete();
   if (hits == 0) Serial.printf("[wifi] target '%s' NOT in scan (2.4G band off or hidden)\n",
@@ -892,7 +892,7 @@ static bool connectWifi() {
                     WiFi.RSSI());
       return true;
     }
-    Serial.printf("[wifi] attempt %d failed, status=%d\n", (int)WiFi.status());
+    Serial.printf("[wifi] attempt %d failed, status=%d\n", attempt, (int)WiFi.status());
     WiFi.disconnect(true);
     delay(1000);
   }
