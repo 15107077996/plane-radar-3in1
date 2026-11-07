@@ -200,7 +200,7 @@ static void drawRings() {
   gfx->drawLine(R_CX, R_CY - R_R, R_CX, R_CY - R_R + 8, C_GREEN);
   gfx->drawLine(R_CX, R_CY + R_R - 8, R_CX, R_CY + R_R, C_GREEN);
   gfx->drawLine(R_CX - R_R, R_CY, R_CX - R_R + 8, R_CY, C_GREEN);
-  gfx->drawLine(R_CX + R_R - 8, R_CY, R_CX + R_R, C_GREEN);
+  gfx->drawLine(R_CX + R_R - 8, R_CY, R_CX + R_R, R_CY, C_GREEN);
 
   char b[16];
   snprintf(b, sizeof(b), "%dKM", (int)RANGES_KM[s_range]);
@@ -686,7 +686,7 @@ static void loadCfg() {
   if (!ok) {                       // NVS empty on a fresh chip: seed it with defaults
     prefs.end();
     s_ssid = DEFAULT_SSID;
-    s_pass = DEFAULTPASS;
+    s_pass = DEFAULT_PASS;
     s_lat = DEFAULT_LAT;
     s_lon = DEFAULT_LON;
     saveCfg();                     // write keys now, later reads never log NOT_FOUND
@@ -715,7 +715,7 @@ static void handleRoot() {
   String html =
       "<html><head><meta charset='utf-8'><meta name='viewport' "
       "content='width=device-width,initial-scale=1'></head><body "
-      "style='font-family: sans-serif;background:#111;color:#eee;padding:18px'>"
+      "style='font-family:sans-serif;background:#111;color:#eee;padding:18px'>"
       "<h3>PlaneRadar 3in1 SETUP</h3><form method='POST' action='/save'>"
       "WIFI SSID (2.4G only)<br><input name='ssid' style='width:100%;padding:8px'><br><br>"
       "WIFI PASSWORD<br><input name='pass' type='password' style='width:100%;padding:8px'><br><br>"
