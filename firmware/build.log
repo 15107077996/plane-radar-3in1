@@ -29,27 +29,27 @@ Collecting ecdsa~=0.19.1
 Collecting bitstring~=4.3.1
   Downloading bitstring-4.3.1-py3-none-any.whl.metadata (5.3 kB)
 Collecting reedsolo~=1.7.0
-  Downloading reedsolo-1.7.0-py3-none-any.whl.metadata (23 kB)
+  Using cached reedsolo-1.7.0-py3-none-any.whl.metadata (23 kB)
 Collecting intelhex~=2.3.0
-  Downloading intelhex-2.3.0-py2.py3-none-any.whl.metadata (2.7 kB)
+  Using cached intelhex-2.3.0-py2.py3-none-any.whl.metadata (2.7 kB)
 Collecting cffi>=1.14 (from cryptography~=45.0.3)
-  Downloading cffi-2.1.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.5 kB)
+  Using cached cffi-2.1.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.5 kB)
 Collecting six>=1.9.0 (from ecdsa~=0.19.1)
   Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
 Collecting bitarray<4.0,>=3.0.0 (from bitstring~=4.3.1)
   Downloading bitarray-3.12.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)
 Collecting pycparser (from cffi>=1.14->cryptography~=45.0.3)
-  Downloading pycparser-3.12-py3-none-any.whl.metadata (9.7 kB)
+  Using cached pycparser-3.12-py3-none-any.whl.metadata (9.7 kB)
 Downloading cryptography-45.0.7-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 167.3 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 53.2 MB/s  0:00:00
 Downloading ecdsa-0.19.2-py2.py3-none-any.whl (150 kB)
 Downloading bitstring-4.3.1-py3-none-any.whl (71 kB)
-Downloading reedsolo-1.7.0-py3-none-any.whl (32 kB)
-Downloading intelhex-2.3.0-py2.py3-none-any.whl (50 kB)
+Using cached reedsolo-1.7.0-py3-none-any.whl (32 kB)
+Using cached intelhex-2.3.0-py2.py3-none-any.whl (50 kB)
 Downloading bitarray-3.12.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (404 kB)
-Downloading cffi-2.1.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (221 kB)
+Using cached cffi-2.1.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (221 kB)
 Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
-Downloading pycparser-3.12-py3-none-any.whl (62 kB)
+Using cached pycparser-3.12-py3-none-any.whl (62 kB)
 Installing collected packages: reedsolo, intelhex, six, pycparser, bitarray, ecdsa, cffi, bitstring, cryptography
 
 Successfully installed bitarray-3.12.3 bitstring-4.3.1 cffi-2.1.1 cryptography-45.0.7 ecdsa-0.19.2 intelhex-2.3.0 pycparser-3.12 reedsolo-1.7.0 six-1.17.0
@@ -198,8 +198,8 @@ Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_ST77
 Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_ST7796.cpp.o
 Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/display/Arduino_WEA2012.cpp.o
 Compiling .pio/build/esp32c3/lib062/PNGdec/PNGdec.cpp.o
-Archiving .pio/build/esp32c3/libb29/libGFX Library for Arduino.a
 Compiling .pio/build/esp32c3/lib062/PNGdec/adler32.c.o
+Archiving .pio/build/esp32c3/libb29/libGFX Library for Arduino.a
 Compiling .pio/build/esp32c3/lib062/PNGdec/crc32.c.o
 Indexing .pio/build/esp32c3/libb29/libGFX Library for Arduino.a
 Compiling .pio/build/esp32c3/lib062/PNGdec/infback.c.o
@@ -226,17 +226,17 @@ Archiving .pio/build/esp32c3/lib989/libWiFi.a
 Indexing .pio/build/esp32c3/lib989/libWiFi.a
 Compiling .pio/build/esp32c3/libe70/Preferences/Preferences.cpp.o
 Compiling .pio/build/esp32c3/lib7aa/FS/FS.cpp.o
-Archiving .pio/build/esp32c3/lib552/libWiFiClientSecure.a
-Indexing .pio/build/esp32c3/lib552/libWiFiClientSecure.a
-Compiling .pio/build/esp32c3/lib7aa/FS/vfs_api.cpp.o
 Archiving .pio/build/esp32c3/libe70/libPreferences.a
 Indexing .pio/build/esp32c3/libe70/libPreferences.a
+Compiling .pio/build/esp32c3/lib7aa/FS/vfs_api.cpp.o
+Archiving .pio/build/esp32c3/lib552/libWiFiClientSecure.a
+Indexing .pio/build/esp32c3/lib552/libWiFiClientSecure.a
 Compiling .pio/build/esp32c3/lib1ce/WebServer/Parsing.cpp.o
 Compiling .pio/build/esp32c3/lib1ce/WebServer/WebServer.cpp.o
 Archiving .pio/build/esp32c3/lib67b/libHTTPClient.a
 Indexing .pio/build/esp32c3/lib67b/libHTTPClient.a
-Compiling .pio/build/esp32c3/lib1ce/WebServer/detail/mimetable.cpp.o
 Archiving .pio/build/esp32c3/lib7aa/libFS.a
+Compiling .pio/build/esp32c3/lib1ce/WebServer/detail/mimetable.cpp.o
 Indexing .pio/build/esp32c3/lib7aa/libFS.a
 Compiling .pio/build/esp32c3/FrameworkArduino/Esp.cpp.o
 Compiling .pio/build/esp32c3/FrameworkArduino/FirmwareMSC.cpp.o
@@ -301,4 +301,4 @@ esptool.py v4.9.0
 Creating esp32c3 image...
 Merged 2 ELF sections
 Successfully created esp32c3 image.
-========================= [SUCCESS] Took 69.92 seconds =========================
+========================= [SUCCESS] Took 63.07 seconds =========================
