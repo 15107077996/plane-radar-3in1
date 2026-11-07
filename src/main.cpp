@@ -733,7 +733,7 @@ static void startPortal() {
   WiFi.softAP(AP_NAME);
   server.on("/", handleRoot);
   server.on("/save", HTTP_POST, handleSave);
-  begin();
+  server.begin();
   Serial.printf("[wifi] portal AP=%s ip=%s\n", AP_NAME, WiFi.softAPIP().toString().c_str());
 
   gfx->fillScreen(C_BLACK);
@@ -770,15 +770,14 @@ static bool connectWifi() {
     if (WiFi.status() == WL_CONNECTED) {
       Serial.printf("[wifi] connected ip=%s rssi=%d\n", WiFi.localIP().toString().c_str(),
                     WiFi.RSSI());
+      return true;
     }
-    return true;
+    Serial.printf("[wifi] attempt %d failed, status=%d\n", attempt, (int)WiFi.status());
+    Serial.flush();
+    WiFi.disconnect(true);
+    delay(1000);
   }
-  Serial.printf("[wifi] attempt %d failed, status=%d\n", attempt, (int)WiFi.status());
-  Serial.flush();
-  WiFi.disconnect(true);
-  delay(1000);
-}
-return false;
+  return false;
 }
 
 // --------------------------------------------------------------- adsb fetch --
@@ -822,9 +821,8 @@ static void fetchPlanes() {
   if (code != HTTP_CODE_OK) {
     http.end();
     s_adsbMsg = "HTTP" + String(code);
+    return;
   }
-  return;
-}
 
   JsonDocument filter;
   filter["ac"][0]["lat"] = true;
@@ -930,7 +928,7 @@ void setup() {
   Serial.flush();
 
   textC(FW_NAME, 100, C_CYAN, 1);
-  textC(FW_VER, 100, C_CYAN, 1);
+  textC(FW_VER, 116, C_GRAY, 1);
   textC("BOOTING", 134, C_GREEN, 1);
 
   allocPngBuffer();
@@ -990,7 +988,7 @@ static void handleButton() {
   if (now == LOW && !longFired && ms - tDown >= 900) {   // hold: next range, once
     longFired = true;
     s_range = (s_range + 1) % RANGE_N;
-    Serial.printf("[ui] hold -> range=%dkm\n", (int)RANGES_KM[s_range]);
+    Serial.printf("[wx] hold -> range=%dkm\n", (int)RANGES_KM[s_range]);
     s_screen = SCR_PLANES;
     enterPlanes();
   }
@@ -1002,8 +1000,8 @@ void loop() {
   if (millis() - lastHb > 10000UL) {
     lastHb = millis();
     Serial.printf("[hb] up=%lus screen=%d range=%dkm planes=%d wx=%s heap=%u wifi=%d\n",
-                  millis() / 1000UL, s_screen, range=%dkm planes=%d wx=%s heap=%u wifi=%d\n",
-                  millis() / 1000UL, s_screen, s_range, s_plN, s_wxMsg.c_str(), (unsigned)ESP.getFreeHeap(), (int)WiFi.status());
+                  millis() / 1000UL, s_screen, (int)RANGES_KM[s_range], s_plN,
+                  s_wxMsg.c_str(), (unsigned)ESP.getFreeHeap(), (int)WiFi.status());
     Serial.flush();
   }
 
@@ -1013,7 +1011,7 @@ void loop() {
     return;
   }
 
-  // one-shot rain check, 20 s after boot, 20 s after boot, never in the setup path
+  // one-shot rain check, 20 s after boot, never in the setup path
   if (!s_wxProbeDone && millis() > 20000UL) {
     s_wxProbeDone = true;
     Serial.println("[wxprobe] checking rainviewer tile"); Serial.flush();
