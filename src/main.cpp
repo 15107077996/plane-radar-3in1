@@ -269,7 +269,7 @@ static void drawPlaneLabels() {
     int tx = x + 5, ty = y - 3;
     if (tx > LCD_W - 42) tx = x - 5 - (int)strlen(lb) * 6;
     if (ty < 20) ty = 20;
-    if (ty > LCD_H - 14) ty = LCD_H - 14;
+    if (ty > LCD_W - 14) ty = LCD_W - 14;
     textAt(lb, tx, ty, C_WHITE, 1);
     labelled++;
   }
@@ -339,7 +339,7 @@ static void drawChinaFaint() {
   }
   int lx = (int)(CN_OX + (s_lon - CN_LON_MIN) * CN_KX);
   int ly = (int)(CN_OY + (CN_LAT_MAX - s_lat) * CN_KY);
-  if (lx > 0 && lx < LCD_W && ly > 0 && ly < LCD_H) {
+  if (lx > 0 && lx < LCD_W && ly > 0 && ly < LCD_W) {
     gfx->fillCircle(lx, ly, 3, C_RED);
     gfx->drawCircle(lx, ly, 6, C_DKRED);
   }
@@ -427,7 +427,7 @@ static void pngRow(PNGDRAW *pDraw) {
     Serial.flush();
   }
   int ty = pDraw->y + s_tileDy;
-  if (ty < 0 || ty >= LCD_H) return;
+  if (ty < 0 || ty >= LCD_W) return;
   int iPixelType = pDraw->iPixelType;
   uint8_t *px = pDraw->pPixels;
   int dy = ty - R_CY;
@@ -836,19 +836,16 @@ static void fetchPlanes() {
     return;
   }
 
-  JsonDocument filter;
-  filter["ac"][0]["lat"] = true;
-  filter["ac"][0]["lon"] = true;
-  filter["ac"][0]["flight"] = true;
-  filter["ac"][0]["alt_baro"] = true;
-  filter["ac"][0]["gs"] = true;
-  filter["ac"][0]["track"] = true;
+  // Full body is small (~15 KB here) and heap is ample; a buffered parse is
+  // reliable and avoids the streaming/filter path that yielded 0 entries.
+  String body = http.getString();
+  http.end();
+  Serial.printf("[adsb] body %d bytes heap=%u\n", (int)body.length(),
+                (unsigned)ESP.getFreeHeap());
+  Serial.flush();
 
   JsonDocument doc;
-  DeserializationError err =
-      deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));
-  http.end();
-
+  DeserializationError err = deserializeJson(doc, body);
   if (err) {
     s_adsbMsg = String(err.c_str());
     Serial.printf("[adsb] json err %s\n", err.c_str());
@@ -923,14 +920,11 @@ static void enterPlanes() {
 // High-priority diagnostic task: even if loopTask is stuck in a tight spin,
 // this preempts it and prints, proving spin vs fault/deadlock.
 static void diagTask(void *) {
-  extern volatile uint32_t g_pngInner, g_pngOuter, g_pngInflateCalls;
   unsigned cnt = 0;
   for (;;) {
-    Serial.printf("[diag] n=%u heap=%u diagStackMin=%u pngIn=%lu pngOut=%lu infCalls=%lu\n", cnt++,
+    Serial.printf("[diag] n=%u heap=%u diagStackMin=%u\n", cnt++,
                   (unsigned)ESP.getFreeHeap(),
-                  (unsigned)uxTaskGetStackHighWaterMark(NULL),
-                  (unsigned long)g_pngInner, (unsigned long)g_pngOuter,
-                  (unsigned long)g_pngInflateCalls);
+                  (unsigned)uxTaskGetStackHighWaterMark(NULL));
     Serial.flush();
     vTaskDelay(pdMS_TO_TICKS(2000));
   }
@@ -991,6 +985,7 @@ void setup() {
   delay(2500);
   t = millis(); s_screen = SCR_PLANES; enterPlanes();
   Serial.printf("[self] plane page %lu ms\n", millis() - t); Serial.flush();
+  delay(2000);
   delay(2000);
 #endif
   Serial.println("[boot] setup done"); Serial.flush();
