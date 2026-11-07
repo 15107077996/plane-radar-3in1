@@ -17,7 +17,7 @@ jobs:
       - name: Install PlatformIO
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install --upgrade platformio
+          python3 -m pip install --upgrade platformio esptool
           pio --version
 
       - name: Build project
@@ -25,15 +25,33 @@ jobs:
           set -o pipefail
           pio run 2>&1 | tee build.log
 
-      - name: Collect binaries
+      - name: Collect and merge binaries
         if: success()
         run: |
           mkdir -p firmware
-          cp .pio/build/esp32c3/firmware.bin firmware/ || true
-          cp .pio/build/esp32c3/bootloader.bin firmware/ || true
-          cp .pio/build/esp32c3/partitions.bin firmware/ || true
-          cp .pio/build/esp32c3/boot_app0.bin firmware/ || true
+          cp .pio/build/esp32c3/firmware.bin firmware/app.bin
+          cp .pio/build/esp32c3/bootloader.bin firmware/bootloader.bin
+          cp .pio/build/esp32c3/partitions.bin firmware/partitions.bin
+          BOOTAPP=$(find ~/.platformio/packages/framework-arduinoespressif32 -name boot_app0.bin | head -n1)
+          echo "boot_app0: $BOOTAPP"
+          cp "$BOOTAPP" firmware/boot_app0.bin
+          python3 -m esptool --chip esp32c3 merge_bin -o firmware/firmware.bin --format raw \
+            0x0 firmware/bootloader.bin \
+            0x8000 firmware/partitions.bin \
+            0xe000 firmware/boot_app0.bin \
+            0x10000 firmware/app.bin
           ls -l firmware
+
+      - name: Verify merged image
+        if: success()
+        run: |
+          python3 - <<'PY'
+          b = open("firmware/firmware.bin", "rb").read()
+          assert b[0x0] == 0xE9, "no bootloader magic at 0x0"
+          assert b[0x8000] == 0xAA and b[0x8001] == 0x50, "no partition table at 0x8000"
+          assert b[0x10000] == 0xE9, "no app magic at 0x10000"
+          print("merged ok, size", len(b))
+          PY
 
       - name: Upload firmware artifact
         if: success()
