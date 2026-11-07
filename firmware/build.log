@@ -41,7 +41,7 @@ Collecting bitarray<4.0,>=3.0.0 (from bitstring~=4.3.1)
 Collecting pycparser (from cffi>=1.14->cryptography~=45.0.3)
   Using cached pycparser-3.12-py3-none-any.whl.metadata (9.7 kB)
 Downloading cryptography-45.0.7-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 84.4 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 63.8 MB/s  0:00:00
 Downloading ecdsa-0.19.2-py2.py3-none-any.whl (150 kB)
 Downloading bitstring-4.3.1-py3-none-any.whl (71 kB)
 Using cached reedsolo-1.7.0-py3-none-any.whl (32 kB)
@@ -109,183 +109,11 @@ Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_G.cpp.o
 Archiving .pio/build/esp32c3/liba33/libWire.a
 Indexing .pio/build/esp32c3/liba33/libWire.a
 Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_GFX.cpp.o
-src/main.cpp: In function 'bool httpGetToBuffer(const char*, uint8_t*, int, int*)':
-src/main.cpp:594:15: error: expected ';' before '}' token
-    .0f, 0x0100};
-               ^
-               ;
-src/main.cpp:596:15: error: 'deg' was not declared in this scope
-     float d = deg - BACK[i];
-               ^~~
-src/main.cpp:596:21: error: 'BACK' was not declared in this scope
-     float d = deg - BACK[i];
-                     ^~~~
-src/main.cpp:596:21: note: suggested alternative: 'BLACK'
-     float d = deg - BACK[i];
-                     ^~~~
-                     BLACK
-src/main.cpp:598:17: error: 'draw' was not declared in this scope
-     drawBeam(d, draw ? TRAIL[i] : C_BLACK);
-                 ^~~~
-src/main.cpp:598:17: note: suggested alternative: 'drem'
-     drawBeam(d, draw ? TRAIL[i] : C_BLACK);
-                 ^~~~
-                 drem
-src/main.cpp:598:24: error: 'TRAIL' was not declared in this scope
-     drawBeam(d, draw ? TRAIL[i] : C_BLACK);
-                        ^~~~~
-src/main.cpp:598:24: note: suggested alternative: 'FAIL'
-     drawBeam(d, draw ? TRAIL[i] : C_BLACK);
-                        ^~~~~
-                        FAIL
-src/main.cpp:600:12: error: 'deg' was not declared in this scope
-   drawBeam(deg, draw ? C_GREEN : C_BLACK);
-            ^~~
-src/main.cpp:600:17: error: 'draw' was not declared in this scope
-   drawBeam(deg, draw ? C_GREEN : C_BLACK);
-                 ^~~~
-src/main.cpp:600:17: note: suggested alternative: 'drem'
-   drawBeam(deg, draw ? C_GREEN : C_BLACK);
-                 ^~~~
-                 drem
-src/main.cpp: At global scope:
-src/main.cpp:603:17: error: redefinition of 'uint16_t altColor(int)'
- static uint16_t altColor(int altFt) {
-                 ^~~~~~~~
-src/main.cpp:246:17: note: 'uint16_t altColor(int)' previously defined here
- static uint16_t altColor(int altFt) {
-                 ^~~~~~~~
-src/main.cpp:612:13: error: redefinition of 'void drawPlaneIcon(int, int, float, bool, uint16_t)'
- static void drawPlaneIcon(int x, int y, float trackDeg, bool hasTrack, uint16_t col) {
-             ^~~~~~~~~~~~~
-src/main.cpp:255:13: note: 'void drawPlaneIcon(int, int, float, bool, uint16_t)' previously defined here
- static void drawPlaneIcon(int x, int y, float trackDeg, bool hasTrack, uint16_t col) {
-             ^~~~~~~~~~~~~
-src/main.cpp:629:13: error: redefinition of 'void drawPlaneIcons()'
- static void drawPlaneIcons() {
-             ^~~~~~~~~~~~~~
-src/main.cpp:272:13: note: 'void drawPlaneIcons()' previously defined here
- static void drawPlaneIcons() {
-             ^~~~~~~~~~~~~~
-src/main.cpp:641:13: error: redefinition of 'void drawPlaneLabels()'
- static void drawPlaneLabels() {
-             ^~~~~~~~~~~~~~~
-src/main.cpp:284:13: note: 'void drawPlaneLabels()' previously defined here
- static void drawPlaneLabels() {
-             ^~~~~~~~~~~~~~~
-src/main.cpp: In function 'void drawPlaneLabels()':
-src/main.cpp:656:26: error: expected ';' before ')' token
-     if (tx > LCD_W - 42)0) {
-                          ^
-                          ;
-src/main.cpp:666:22: error: 'last' was not declared in this scope
-       if (millis() - last > 10000) break;
-                      ^~~~
-src/main.cpp:666:22: note: suggested alternative: 'labs'
-       if (millis() - last > 10000) break;
-                      ^~~~
-                      labs
-src/main.cpp:667:7: error: expected ';' before ')' token
-      0) {
-       ^
-       ;
-src/main.cpp:676:7: error: 'else' without a previous 'if'
-     } else {
-       ^~~~
-src/main.cpp:677:22: error: 'last' was not declared in this scope
-       if (millis() - last > 10000) break;
-                      ^~~~
-src/main.cpp:677:22: note: suggested alternative: 'labs'
-       if (millis() - last > 10000) break;
-                      ^~~~
-                      labs
-src/main.cpp:681:3: error: 'http' was not declared in this scope
-   http.end();
-   ^~~~
-src/main.cpp:682:4: error: 'got' was not declared in this scope
-   *got = n;
-    ^~~
-src/main.cpp:682:10: error: 'n' was not declared in this scope
-   *got = n;
-          ^
-src/main.cpp:683:14: error: return-statement with a value, in function returning 'void' [-fpermissive]
-   return n > 0;
-              ^
-src/main.cpp:686:28: error: a function-definition is not allowed here before '{' token
- static bool fetchWeather() {
-                            ^
-src/main.cpp:781:32: error: a function-definition is not allowed here before '{' token
- static void drawRainSkeleton() {
-                                ^
-src/main.cpp:789:29: error: a function-definition is not allowed here before '{' token
- static void drawRainFrame() {
-                             ^
-src/main.cpp:800:28: error: a function-definition is not allowed here before '{' token
- static void drawRainFail() {
-                            ^
-src/main.cpp:808:28: error: a function-definition is not allowed here before '{' token
- static void enterWeather() {
-                            ^
-src/main.cpp:816:30: error: a function-definition is not allowed here before '{' token
- static bool fetchOpenMeteo() {
-                              ^
-src/main.cpp:852:23: error: a function-definition is not allowed here before '{' token
- static void saveCfg() {
-                       ^
-src/main.cpp:865:23: error: a function-definition is not allowed here before '{' token
- static void loadCfg() {
-                       ^
-src/main.cpp:895:26: error: a function-definition is not allowed here before '{' token
- static void handleRoot() {
-                          ^
-src/main.cpp:910:26: error: a function-definition is not allowed here before '{' token
- static void handleSave() {
-                          ^
-src/main.cpp:923:27: error: a function-definition is not allowed here before '{' token
- static void startPortal() {
-                           ^
-src/main.cpp:939:27: error: a function-definition is not allowed here before '{' token
- static bool connectWifi() {
-                           ^
-src/main.cpp:979:26: error: a function-definition is not allowed here before '{' token
- static bool locateByIp() {
-                          ^
-src/main.cpp:1027:38: error: a function-definition is not allowed here before '{' token
- static void addPlane(const Plane &q) {
-                                      ^
-src/main.cpp:1037:26: error: a function-definition is not allowed here before '{' token
- static void sortPlanes() {
-                          ^
-src/main.cpp:1046:27: error: a function-definition is not allowed here before '{' token
- static void fetchPlanes() {
-                           ^
-src/main.cpp:1120:36: error: a function-definition is not allowed here before '{' token
- static unsigned long planePeriod() {
-                                    ^
-src/main.cpp:1129:27: error: a function-definition is not allowed here before '{' token
- static bool initDisplay() {
-                           ^
-src/main.cpp:1143:27: error: a function-definition is not allowed here before '{' token
- static void enterPlanes() {
-                           ^
-src/main.cpp:1150:30: error: a function-definition is not allowed here before '{' token
- static void diagTask(void *) {
-                              ^
-src/main.cpp:1160:14: error: a function-definition is not allowed here before '{' token
- void setup() {
-              ^
-src/main.cpp:1223:28: error: a function-definition is not allowed here before '{' token
- static void handleButton() {
-                            ^
-src/main.cpp:1264:13: error: a function-definition is not allowed here before '{' token
- void loop() {
-             ^
-src/main.cpp:1335:1: error: expected '}' at end of input
- }
- ^
-src/main.cpp:641:31: note: to match this '{'
- static void drawPlaneLabels() {
-                               ^
+src/main.cpp: In function 'void startPortal()':
+src/main.cpp:858:62: error: 'class WiFiClass' has no member named 'softAPip'; did you mean 'softAP'?
+   Serial.printf("[wifi] portal AP=%s ip=%s\n", AP_NAME, WiFi.softAPip().toString().c_str());
+                                                              ^~~~~~~~
+                                                              softAP
 Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_GFX_Library.cpp.o
 *** [.pio/build/esp32c3/src/main.cpp.o] Error 1
-========================= [FAILED] Took 40.94 seconds =========================
+========================= [FAILED] Took 39.74 seconds =========================
