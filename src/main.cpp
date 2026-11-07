@@ -591,80 +591,8 @@ static bool httpGetToBuffer(const char *url, uint8_t *buf, int cap, int *got) {
   int n = 0;
   unsigned long last = millis();
   while (http.connected()) {
-   .0f, 0x0100};
-  for (int i = 0; i < 3; i++) {
-    float d = deg - BACK[i];
-    while (d < 0.0f) d += 360.0f;
-    drawBeam(d, draw ? TRAIL[i] : C_BLACK);
-  }
-  drawBeam(deg, draw ? C_GREEN : C_BLACK);
-}
-
-static uint16_t altColor(int altFt) {
-  if (altFt <= 0) return C_GRAY;
-  float km = altFt * 0.0003048f;
-  if (km < 2.0f) return C_RED;
-  if (km < 6.0f) return C_ORANGE;
-  if (km < 10.0f) return C_YELLOW;
-  return C_BLUE;
-}
-
-static void drawPlaneIcon(int x, int y, float trackDeg, bool hasTrack, uint16_t col) {
-  if (!hasTrack) {
-    gfx->fillCircle(x, y, 2, col);
-    return;
-  }
-  float a = trackDeg * 0.0174532925f;
-  const float pts[6] = {0.0f, -6.0f, -4.0f, 5.0f, 4.0f, 5.0f};
-  int px[3], py[3];
-  for (int i = 0; i < 3; i++) {
-    float x0 = pts[i * 2], y0 = pts[i * 2 + 1];
-    px[i] = x + (int)(x0 * cosf(a) - y0 * sinf(a));
-    py[i] = y + (int)(x0 * sinf(a) + y0 * cosf(a));
-  }
-  gfx->fillTriangle(px[0], py[0], px[1], py[1], px[2], py[2], col);
-}
-
-// icons only - also used every animation frame to repair what the beam erase hit
-static void drawPlaneIcons() {
-  float scale = (float)R_R / RANGES_KM[s_range];
-  for (int i = 0; i < s_plN; i++) {
-    float brg = s_pl[i].brg * 0.0174532925f;
-    float d = s_pl[i].dist * scale;
-    int x = R_CX + (int)(d * sinf(brg));
-    int y = R_CY - (int)(d * cosf(brg));
-    if ((x - R_CX) * (x - R_CX) + (y - R_CY) * (y - R_CY) > R_R * R_R) continue;
-    drawPlaneIcon(x, y, s_pl[i].track, s_pl[i].hasTrack, altColor(s_pl[i].altFt));
-  }
-}
-
-static void drawPlaneLabels() {
-  float scale = (float)R_R / RANGES_KM[s_range];
-  int labelled = 0;
-  for (int i = 0; i < s_plN && labelled < 5; i++) {
-    if (!s_pl[i].cs[0]) continue;
-    float brg = s_pl[i].brg * 0.0174532925f;
-    float d = s_pl[i].dist * scale;
-    int x = R_CX + (int)(d * sinf(brg));
-    int y = R_CY - (int)(d * cosf(brg));
-    if ((x - R_CX) * (x - R_CX) + (y - R_CY) * (y - R_CY) > R_R * R_R) continue;
-    char lb[24];
-    int altM = (int)(s_pl[i].altFt * 0.3048f);
-    if (altM > 0) snprintf(lb, sizeof(lb), "%s %dm", s_pl[i].cs, altM);
-    else          snprintf(lb, sizeof(lb), "%s", s_pl[i].cs);
-    int tx = x + 5, ty = y - 3;
-    if (tx > LCD_W - 42)0) {
-      int want = cap - n;
-      if (want <= 0) break;
-      if (avail > want) avail = want;
-      int rd = s->readBytes(buf + n, avail);
-      if (rd <= 0) break;
-      n += rd;
-      last = millis();
-      if (total > 0 && n >= total) break;
-    } else {
-      if (millis() - last > 10000) break;
-     0) {
+    int avail = s->available();
+    if (avail > 0) {
       int want = cap - n;
       if (want <= 0) break;
       if (avail > want) avail = want;
@@ -1130,6 +1058,8 @@ static bool initDisplay() {
   Serial.println("[lcd] step1: create SPI bus");
   s_bus = new Arduino_ESP32SPI(PIN_DC, PIN_CS, PIN_SCLK, PIN_MOSI);
   Serial.println("[lcd] step2: create GC9A01 panel");
+  // ips=true => INVON (0x21): this GC9A01 panel needs display inversion ON,
+  // otherwise 0x0000 renders white and all UI colours come out inverted.
   Arduino_GC9A01 *panel = new Arduino_GC9A01(s_bus, PIN_RST, 0, true);
   gfx = panel;
   Serial.println("[lcd] step3: gfx->begin()");
