@@ -41,7 +41,7 @@ Collecting bitarray<4.0,>=3.0.0 (from bitstring~=4.3.1)
 Collecting pycparser (from cffi>=1.14->cryptography~=45.0.3)
   Using cached pycparser-3.12-py3-none-any.whl.metadata (9.7 kB)
 Downloading cryptography-45.0.7-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 89.8 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 84.4 MB/s  0:00:00
 Downloading ecdsa-0.19.2-py2.py3-none-any.whl (150 kB)
 Downloading bitstring-4.3.1-py3-none-any.whl (71 kB)
 Using cached reedsolo-1.7.0-py3-none-any.whl (32 kB)
@@ -107,24 +107,20 @@ Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_DataBus.cpp.
 Archiving .pio/build/esp32c3/lib30b/libSPI.a
 Indexing .pio/build/esp32c3/lib30b/libSPI.a
 Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_G.cpp.o
-src/main.cpp: In function 'void drawPlaneLabels()':
-src/main.cpp:256:28: error: invalid operands of types 'float' and 'const float [4]' to binary 'operator/'
-   float scale = (float)R_R / RANGES_KM;
-                 ~~~~~~~~~~~^~~~~~~~~~~
-src/main.cpp: In function 'void drawPlaneFooter()':
-src/main.cpp:283:54: error: no match for 'operator<' (operand types are 'float' and 'Plane')
-     for (int i = 1; i < s_plN; i++) if (s_pl[i].dist < s_pl[best]) best = i;
-                                         ~~~~~~~~~~~~~^~~~~~~~~~~~
 Archiving .pio/build/esp32c3/liba33/libWire.a
 Indexing .pio/build/esp32c3/liba33/libWire.a
-src/main.cpp: In function 'void addPlane(const Plane&)':
-src/main.cpp:794:54: error: no match for 'operator>' (operand types are 'float' and 'Plane')
-     for (int i = 1; i < s_plN; i++) if (s_pl[i].dist > s_pl[worst]) worst = i;
-                                         ~~~~~~~~~~~~~^~~~~~~~~~~~~
-src/main.cpp:795:16: error: no match for 'operator<' (operand types are 'const float' and 'Plane')
-     if (q.dist < s_pl[worst]) s_pl[worst] = q;
-         ~~~~~~~^~~~~~~~~~~~~
 Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_GFX.cpp.o
+src/main.cpp: In function 'void pngRow(PNGDRAW*)':
+src/main.cpp:421:17: error: 'p' was not declared in this scope
+                 p Draw->y == 191 || pDraw->y == 255);
+                 ^
+src/main.cpp:421:18: error: expected ')' before 'Draw'
+                 p Draw->y == 191 || pDraw->y == 255);
+                  ^~~~~
+                  )
+src/main.cpp:420:16: note: to match this '('
+   bool doLog = (pDraw->y == 0 || pDraw->y == 1 || pDraw->y == 63 || pDraw->y == 127 ||
+                ^
 Compiling .pio/build/esp32c3/libb29/GFX Library for Arduino/Arduino_GFX_Library.cpp.o
 *** [.pio/build/esp32c3/src/main.cpp.o] Error 1
-========================= [FAILED] Took 42.71 seconds =========================
+========================= [FAILED] Took 37.78 seconds =========================
