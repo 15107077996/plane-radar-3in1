@@ -81,7 +81,7 @@
 
 // ------------------------------------------------------------------ config --
 #define FW_NAME "PlaneRadar 3in1"
-#define FW_VER  "1.1.0-c3"
+#define FW_VER  "1.1.1-c3"
 #define AP_NAME "PlaneRadar-Setup"
 #define NTP1    "ntp.aliyun.com"
 #define NTP2    "cn.pool.ntp.org"
@@ -152,6 +152,16 @@ static bool     s_wxDry  = false;      // true while self-testing, no pixels dra
 static bool     s_wxNeed = false;      // page asks for a tile, loop() does the work
 static bool     s_wxProbeDone = false; // one-shot boot rain check (runs from loop)
 
+// Open-Meteo clock weather (best effort, plain HTTP): temp + wind + wmo code
+static float    s_omTemp = 0.0f, s_omWind = 0.0f;
+static int      s_omCode = 0;
+static bool     s_omOk = false;
+static bool     s_omNeed = false;
+static unsigned long s_omStamp = 0;
+
+// clock outer second-ring state
+static int      s_ringLastSec = -1;
+
 // radar beam
 static float s_sweep  = 0.0f;
 static bool  s_beamOn = false;
@@ -205,6 +215,12 @@ static void drawRings() {
   char b[16];
   snprintf(b, sizeof(b), "%dKM", (int)RANGES_KM[s_range]);
   textC(b, 24, C_CYAN, 1);
+
+  // compass letters just inside the outer ring (footer band starts at 172)
+  textAt("N", R_CX - 3, 14, C_WHITE, 1);
+  textAt("E", 222, R_CY - 3, C_WHITE, 1);
+  textAt("W", 8, R_CY - 3, C_WHITE, 1);
+  textAt("S", R_CX - 3, 160, C_WHITE, 1);
 }
 
 static void drawBeam(float deg, uint16_t col) {
@@ -212,6 +228,19 @@ static void drawBeam(float deg, uint16_t col) {
   int x2 = R_CX + (int)(R_R * sinf(a));
   int y2 = R_CY - (int)(R_R * cosf(a));
   gfx->drawLine(R_CX, R_CY, x2, y2, col);
+}
+
+// Full sweep = bright beam plus a short fading trail (4 lines total). Erase and
+// draw variants share the same geometry so the black pass clears exactly.
+static void sweepSet(float deg, bool draw) {
+  static const float BACK[3] = {4.0f, 8.0f, 12.0f};
+  static const uint16_t TRAIL[3] = {0x0320, 0x0200, 0x0100};
+  for (int i = 0; i < 3; i++) {
+    float d = deg - BACK[i];
+    while (d < 0.0f) d += 360.0f;
+    drawBeam(d, draw ? TRAIL[i] : C_BLACK);
+  }
+  drawBeam(deg, draw ? C_GREEN : C_BLACK);
 }
 
 static uint16_t altColor(int altFt) {
@@ -306,7 +335,7 @@ static void renderPlanes() {
   drawPlaneLabels();
   drawPlaneFooter();
   gfx->fillCircle(R_CX, R_CY, 2, C_GREEN);
-  drawBeam(s_sweep, C_GREEN);
+  sweepSet(s_sweep, true);
   s_beamOn = true;
 }
 
@@ -328,7 +357,7 @@ static void drawChinaFaint() {
   for (int r = 0; r < CN_RING_COUNT; r++) {
     int n = CN_RING_LEN[r];
     int px = 0, py = 0;
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i i < n; i++) {
       uint16_t qx = pgm_read_word(&CN_PTS[off + i * 2]);
       uint16_t qy = pgm_read_word(&CN_PTS[off + i * 2 + 1]);
       int x = qx / 10, y = qy / 10;
@@ -380,9 +409,55 @@ static void drawHands(struct tm *lt) {
   s_handValid = true;
 }
 
+// Outer 60-dot "second ring" (MeteoPlaneRadar-style): all dots dim, the current
+// second's dot lights cyan and advances around the dial once per minute.
+#define RING_R 110
+static void ringPoint(int sec, uint16_t col) {
+  float a = sec * 6.0f * 0.0174532925f;
+  int x = R_CX + (int)(RING_R * sinf(a));
+  int y = R_CY - (int)(RING_R * cosf(a));
+  gfx->fillCircle(x, y, 1, col);
+}
+static void drawSecondRing() {
+  for (int i = 0; i < 60; i++) ringPoint(i, 0x2104);
+  s_ringLastSec = -1;
+}
+static void updateSecondRing(int sec) {
+  if (sec == s_ringLastSec) return;
+  if (s_ringLastSec >= 0) ringPoint(s_ringLastSec, 0x2104);
+  ringPoint(sec, C_CYAN);
+  s_ringLastSec = sec;
+}
+
+// WMO weather code -> short English label
+static const char *wmoLabel(int c) {
+  if (c == 0) return "CLEAR";
+  if (c == 1) return "MAINLY";
+  if (c == 2) return "PARTLY";
+  if (c == 3) return "OVERCAST";
+  if (c == 45 || c == 48) return "FOG";
+  if (c >= 51 && c <= 57) return "DRIZZLE";
+  if (c >= 61 && c <= 67) return "RAIN";
+  if (c >= 71 && c <= 77) return "SNOW";
+  if (c >= 80 && c <= 82) return "SHOWERS";
+  if (c == 85 || c == 86) return "SLEET";
+  if (c >= 95) return "STORM";
+  return "WX";
+}
+
+// best-effort weather line on the clock face
+static void drawClockWeather() {
+  gfx->fillRect(20, 148, 200, 14, C_BLACK);
+  if (!s_omOk) { textC("...", 150, C_GRAY, 1); return; }
+  char b[40];
+  snprintf(b, sizeof(b), "%.0fC  %.0fkm/h  %s", s_omTemp, s_omWind, wmoLabel(s_omCode));
+  textC(b, 150, C_WHITE, 1);
+}
+
 static void renderClock() {
   gfx->fillScreen(C_BLACK);
   drawChinaFaint();
+  drawSecondRing();
   drawDial();
   time_t now = time(nullptr);
   struct tm lt;
@@ -406,6 +481,8 @@ static void clockTick() {
   }
   drawClockText(&lt);
   drawHands(&lt);
+  updateSecondRing(lt.tm_sec);
+  drawClockWeather();
   gfx->fillCircle(R_CX, R_CY, 3, C_GREEN);
 }
 
@@ -667,6 +744,43 @@ static void enterWeather() {
   textC("LOADING...", R_CY + 8, C_GRAY, 1);
 }
 
+// Best-effort Open-Meteo current conditions (plain HTTP, no TLS). On failure the
+// previous values (or "...") stay on screen; it never blocks the page for long.
+static bool fetchOpenMeteo() {
+  char url[160];
+  snprintf(url, sizeof(url),
+           "http://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
+           "&current=temperature_2m,wind_speed_10m,weather_code",
+           s_lat, s_lon);
+
+  WiFiClient c;
+  HTTPClient http;
+  http.setConnectTimeout(6000);
+  http.setTimeout(8000);
+  if (!http.begin(c, String(url))) { Serial.println("[om] begin failed"); return false; }
+  http.addHeader("User-Agent", "PlaneRadar3in1/1.0");
+  int code = http.GET();
+  if (code != HTTP_CODE_OK) {
+    Serial.printf("[om] http %d\n", code);
+    http.end();
+    return false;
+  }
+  String body = http.getString();
+  http.end();
+
+  JsonDocument doc;
+  if (deserializeJson(doc, body)) { Serial.println("[om] json fail"); return false; }
+  JsonObject cur = doc["current"];
+  if (cur.isNull()) { Serial.println("[om] no current"); return false; }
+
+  s_omTemp = cur["temperature_2m"] | 0.0f;
+  s_omWind = cur["wind_speed_10m"] | 0.0f;
+  s_omCode = cur["weather_code"] | 0;
+  s_omOk = true;
+  Serial.printf("[om] %.1fC wind %.1fkm/h code %d\n", s_omTemp, s_omWind, s_omCode);
+  return true;
+}
+
 // ------------------------------------------------------------------ network --
 static void saveCfg() {
   if (!prefs.begin("pr3", false)) {
@@ -768,7 +882,7 @@ static bool connectWifi() {
     Serial.printf("[wifi]   %-20s rssi=%d ch=%d\n", WiFi.SSID(i).c_str(), WiFi.RSSI(i),
                   WiFi.channel(i));
     if (WiFi.SSID(i) == s_ssid) hits++;
-    }
+  }
   WiFi.scanDelete();
   if (hits == 0) Serial.printf("[wifi] target '%s' NOT in scan (2.4G band off or hidden)\n",
                                s_ssid.c_str());
@@ -1099,6 +1213,20 @@ void loop() {
     Serial.flush();
   }
 
+  // Open-Meteo clock weather: first fix ~15 s after boot, then every 10 min;
+  // failed attempts are throttled and the device keeps its last good values.
+  bool omDue = s_omNeed ||
+               (s_omOk && millis() - s_omStamp > 600000UL) ||
+               (!s_omOk && millis() > 15000UL && millis() - s_omStamp > 30000UL);
+  if (omDue) {
+    s_omNeed = false;
+    bool omok = fetchOpenMeteo();
+    s_omStamp = millis();
+    Serial.printf("[om] %s\n", omok ? "updated" : "failed, retry later");
+    Serial.flush();
+    if (s_screen == SCR_CLOCK) drawClockWeather();
+  }
+
   handleButton();
 
   unsigned long now = millis();
@@ -1109,12 +1237,12 @@ void loop() {
       s_nextFetch = now + planePeriod();
       renderPlanes();                       // one full repaint per data update
     } else {
-      if (s_beamOn) drawBeam(s_sweep, C_BLACK);
+      if (s_beamOn) sweepSet(s_sweep, false);
       s_sweep += 4.0f;
       if (s_sweep >= 360.0f) s_sweep -= 360.0f;
       drawPlaneIcons();
       gfx->fillCircle(R_CX, R_CY, 2, C_GREEN);
-      drawBeam(s_sweep, C_GREEN);
+      sweepSet(s_sweep, true);
       s_beamOn = true;
     }
     delay(70);
