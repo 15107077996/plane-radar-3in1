@@ -752,11 +752,16 @@ static unsigned long planePeriod() {
 
 // ==================================================================== boot ===
 static bool initDisplay() {
+  Serial.println("[lcd] step1: create SPI bus"); Serial.flush();
   s_bus = new Arduino_ESP32SPI(PIN_DC, PIN_CS, PIN_SCLK, PIN_MOSI);
+  Serial.println("[lcd] step2: create GC9A01 panel"); Serial.flush();
   Arduino_GC9A01 *panel = new Arduino_GC9A01(s_bus, PIN_RST, 0, true);
   gfx = panel;
+  Serial.println("[lcd] step3: gfx->begin()"); Serial.flush();
   bool ok = gfx->begin(SPI_HZ);
+  Serial.println("[lcd] step4: begin returned"); Serial.flush();
   gfx->fillScreen(C_BLACK);
+  Serial.println("[lcd] step5: screen cleared"); Serial.flush();
   return ok;
 }
 
@@ -767,23 +772,30 @@ static void enterPlanes() {
 
 void setup() {
   Serial.begin(115200);
-  delay(150);
+  delay(300);
   Serial.println();
   Serial.println("=== " FW_NAME " " FW_VER " ===");
   Serial.printf("[boot] pins MOSI=%d SCLK=%d CS=%d DC=%d RST=%d KEY=%d\n",
                 PIN_MOSI, PIN_SCLK, PIN_CS, PIN_DC, PIN_RST, PIN_BTN);
+  Serial.flush();
 
   // no backlight pin on this panel (BL is wired to 3V3)
   pinMode(PIN_BTN, INPUT_PULLUP);
 
+  Serial.println("[boot] load config"); Serial.flush();
   loadCfg();
+  Serial.println("[boot] config loaded, display next"); Serial.flush();
   bool dispOk = initDisplay();
   Serial.printf("[lcd] GC9A01 init %s, heap %u\n", dispOk ? "OK" : "FAIL",
                 (unsigned)ESP.getFreeHeap());
+  Serial.flush();
 
   allocPngBuffer();
+  Serial.flush();
 
+  Serial.println("[wifi] trying to join saved network"); Serial.flush();
   if (!connectWifi()) {
+    Serial.println("[wifi] join failed, starting setup AP"); Serial.flush();
     startPortal();
   } else {
     Serial.printf("[wifi] connected %s ip=%s rssi=%d\n", s_ssid.c_str(),
@@ -797,6 +809,7 @@ void setup() {
 
   s_screen = SCR_PLANES;
   enterPlanes();
+  Serial.println("[boot] setup done"); Serial.flush();
 }
 
 static void handleButton() {
@@ -828,6 +841,15 @@ static void handleButton() {
 }
 
 void loop() {
+  static unsigned long lastHb = 0;
+  if (millis() - lastHb > 10000UL) {
+    lastHb = millis();
+    Serial.printf("[hb] up=%lus screen=%d range=%dkm planes=%d wx=%s heap=%u wifi=%d\n",
+                  millis() / 1000UL, s_screen, (int)RANGES_KM[s_range], s_plN,
+                  s_wxMsg.c_str(), (unsigned)ESP.getFreeHeap(), (int)WiFi.status());
+    Serial.flush();
+  }
+
   if (s_portal) {
     server.handleClient();
     delay(2);
