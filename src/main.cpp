@@ -81,7 +81,7 @@
 
 // ------------------------------------------------------------------ config --
 #define FW_NAME "PlaneRadar 3in1"
-#define FW_VER  "1.0.6-c3"
+#define FW_VER  "1.0.7-c3"
 #define AP_NAME "PlaneRadar-Setup"
 #define NTP1    "ntp.aliyun.com"
 #define NTP2    "cn.pool.ntp.org"
@@ -607,6 +607,9 @@ static bool fetchWeather() {
     return false;
   }
   Serial.println("[wx] before decode"); Serial.flush();
+  Serial.printf("[wx] loopTask stack min before decode=%u\n",
+                (unsigned)uxTaskGetStackHighWaterMark(NULL));
+  Serial.flush();
   rc = s_png.decode(NULL, 0);
   Serial.printf("[wx] after decode rc=%d\n", rc); Serial.flush();
   s_png.close();
@@ -701,7 +704,7 @@ static void loadCfg() {
 
 static void handleRoot() {
   String html =
-      "<html><head><meta charset='utf-8'><meta name='viewport' "
+      "<html><head><meta charset='utf-8'><meta name=viewport "
       "content='width=device-width,initial-scale=1'></head><body "
       "style='font-family:sans-serif;background:#111;color:#eee;padding:18px'>"
       "<h3>PlaneRadar 3in1 SETUP</h3><form method='POST' action='/save'>"
@@ -908,6 +911,19 @@ static void enterPlanes() {
   s_nextFetch = 0;
 }
 
+// High-priority diagnostic task: even if loopTask is stuck in a tight spin,
+// this preempts it and prints, proving spin vs fault/deadlock.
+static void diagTask(void *) {
+  unsigned cnt = 0;
+  for (;;) {
+    Serial.printf("[diag] n=%u heap=%u diagStackMin=%u\n", cnt++,
+                  (unsigned)ESP.getFreeHeap(),
+                  (unsigned)uxTaskGetStackHighWaterMark(NULL));
+    Serial.flush();
+    vTaskDelay(pdMS_TO_TICKS(2000));
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   delay(300);
@@ -918,6 +934,8 @@ void setup() {
   Serial.flush();
 
   pinMode(PIN_BTN, INPUT_PULLUP);
+
+  xTaskCreate(diagTask, "diag", 2560, nullptr, 3, nullptr);
 
   Serial.println("[boot] load config"); Serial.flush();
   loadCfg();
