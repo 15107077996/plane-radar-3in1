@@ -97,13 +97,26 @@ static bool downloadToBuf(const char *url) {
     return false;
   }
   int total = http.getSize();
+  // Allocate exactly what this tile needs: a 72KB block no longer fits after
+  // WiFi/TLS, while the tiles themselves are 5-17KB.
+  size_t need = (total > 0) ? (size_t)total + 8 : (size_t)PNG_BUF_CAP;
+  if (need > PNG_BUF_CAP) {
+    Serial.printf("[mem] tile too big total=%d cap=%u\n", total,
+                  (unsigned)PNG_BUF_CAP);
+    http.end();
+    return false;
+  }
+  if (!ensurePngBuf(need)) {
+    http.end();
+    return false;
+  }
   WiFiClient *stream = http.getStreamPtr();
   s_pngLen = 0;
   uint32_t start = millis();
   while (http.connected() && (total < 0 || (int)s_pngLen < total)) {
     size_t avail = stream->available();
     if (avail) {
-      if (s_pngLen + avail > PNG_BUF_CAP) avail = PNG_BUF_CAP - s_pngLen;
+      if (s_pngLen + avail > s_pngCap) avail = s_pngCap - s_pngLen;
       if (avail == 0) break;
       int got = stream->readBytes(s_pngData + s_pngLen, avail);
       s_pngLen += got;
@@ -123,7 +136,10 @@ static bool downloadToBuf(const char *url) {
 static bool rainRefresh() {
   s_rainOk = false;
   s_rainPx = 0;
-  if (!ensurePngBuf()) {
+  // Sanity check before touching the network: the smallest tile needs this much.
+  if (ESP.getMaxAllocHeap() < PNG_BUF_MIN) {
+    Serial.printf("[mem] low heap free=%u maxblk=%u\n", ESP.getFreeHeap(),
+                  ESP.getMaxAllocHeap());
     gfx->fillScreen(C_BLACK);
     useFont(u8g2_font_unifont_t_chinese4);
     txtC("内存不足", 120, C_RED);
@@ -208,7 +224,7 @@ static bool rainRefresh() {
       s_rainMs = millis();
       s_rainOk = true;
       ok = true;
-      Serial.printf("[rain] ok cover=%d%%\n", cover);
+      Serial.printf("[rain] ok cover=%d%% free=%u\n", cover, ESP.getFreeHeap());
     }
   }
 
