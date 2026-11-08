@@ -491,7 +491,7 @@ static void fillTriBody(int x, int y, float sn, float cs,
   gfx->fillTriangle(ax, ay, bx, by, cx, cy, col);
 }
 
-// Clear top-view airplane icon (fuselage + swept wings + tail), rotated by heading.
+// Top-view airplane icon (fuselage + swept wings + tail), rotated by heading.
 static void drawPlaneMarker(int x, int y, int head, uint16_t col) {
   float a = head * PI / 180.0f;
   float sn = sin(a), cs = cos(a);
@@ -559,7 +559,7 @@ static bool fetchPlanes() {
                     nt >= 0 ? planeDistKm(nt) : 0);
     }
   } else {
-    Serial.printf("[planes] http %d\n", code);
+    SerialPrintf("[planes] http %d\n", code);
   }
   http.end();
   return ok;
@@ -611,7 +611,7 @@ static void drawRings() {
     gfx->drawCircle(R_CX, R_CY, rr, C_DKGREEN);
   }
   gfx->drawLine(R_CX, R_CY - R_R, R_CX, R_CY + R_R, C_DKGREEN);
-  gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, C_DKGREEN);
+  gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, R_CY, C_DKGREEN);
   (void)R;
 }
 
@@ -696,8 +696,8 @@ static void drawPlanes(float sweep) {
 // Legacy full-screen redraw kept for reference; compiler ignores this block.
 static void drawPlanes_old(float sweep) {
   gfx->fillScreen(C_BLACK);
-  gfx->drawCircle(R_CX, R_CY, R_R);
-  gfx->drawCircle(R_CX, R_CY, R_R - 3, R_R);
+  gfx->drawCircle(R_CX, R_CY, R_R, C_RED);
+  gfx->drawCircle(R_CX, R_CY, R_R - 3, C_RED);
   gfx->drawLine(R_CX, R_CY - R_R, R_CX, R_CY + R_R, C_DKGREEN);
   gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, C_DKGREEN);
   for (int f = 1; f <= 3; f++) {
@@ -740,7 +740,7 @@ static void drawHands(int hour, int minute, int second) {
   int mx = R_CX + (int)(sin(aM) * 70), my = R_CY - (int)(cos(aM) * 70);
   gfx->drawLine(R_CX, R_CY, hx, hy, C_WHITE);
   gfx->drawLine(R_CX, R_CY, mx, my, C_WHITE);
-  int sx = R_CX + (int)(sin(aS) * 84), sy = R_CY - (int)(cos(aS) * 84);
+  gfx->drawLine(int)(sin(aS) * 84), sy = R_CY - (int)(cos(aS) * 84);
   gfx->drawLine(R_CX, R_CY, sx, sy, C_RED);
 }
 
@@ -786,7 +786,7 @@ static void renderClock() {
   useFont(u8g2_font_helvB08_tr);
   for (int i = 0; i < 60; i++) {
     float a = i * 6 * PI / 180;
-    bool major = (i % 5 == 0);
+    bool major = i % 5 == 0;
     int r1 = major ? R_R - 9 : R_R - 5;
     int r2 = R_R - 2;
     int x1 = R_CX + (int)(sin(a) * r1), y1 = R_CY - (int)(cos(a) * r1);
@@ -851,7 +851,7 @@ static void renderForecast() {
   useFont(u8g2_font_unifont_t_chinese4);
   for (int i = 0; i < 3; i++) {
     int w = textW(DL[i]);
-    txtAt(DL[i], colX - w / 2, 90, C_CYAN);
+    txtAt(DL[i], colX[i] - w / 2, 90, C_CYAN);
   }
   if (s_metOk) {
     for (int i = 0; i < 3; i++) {
@@ -860,10 +860,10 @@ static void renderForecast() {
       char tt[24];
       snprintf(tt, sizeof(tt), "%.0f/%.0f", s_days[i].tmin, s_days[i].tmax);
       int w = textW(tt);
-      txtAt(tt, colX - w / 2, 132, C_WHITE);
+      txtAt(tt, colX[i] - w / 2, 132, C_WHITE);
       useFont(u8g2_font_unifont_t_chinese4);
       int zw = textW(wmoZh(s_days[i].code));
-      txtAt(wmoZh(s_days[i].code), colX - zw / 2, 150, C_GREEN);
+      txtAt(wmoZh(s_days[i].code), colX[i] - zw / 2, 150, C_GREEN);
     }
   }
 
@@ -913,6 +913,7 @@ static void pngRow(PNGDRAW *pDraw) {
   for (int i = 0; i < w; i++) {
     int tx = i + s_tileDx;
     bool inCircle = false;
+   少年宫
     if (tx >= 0 && tx < SCR_W) {
       int dx = tx - R_CX;
       if (dx * dx + dy2 <= R_R * R_R) inCircle = true;
@@ -925,7 +926,7 @@ static void pngRow(PNGDRAW *pDraw) {
       else col = (uint16_t)(((px[i * 4] & 0xF8) << 8) |
                            ((px[i * 4 + 1] & 0xFC) << 3) | (px[i * 4 + 2] >> 3));
       if (s_pngMode == 1 && a >= 30 && inCircle) s_rainPx++;
-    } else if (iPixelType == PNG_PIXEL_TRUECOLOR) {
+    } else if (iPixelType == PNG_PIXEL) {
       col = (uint16_t)(((px[i * 3] & 0xF8) << 8) |
                        ((px[i * 3 + 1] & 0xFC) << 3) | (px[i * 3 + 2] >> 3));
     } else if (iPixelType == PNG_PIXEL_INDEXED) {
@@ -941,7 +942,7 @@ static void pngRow(PNGDRAW *pDraw) {
       if (s_pngMode == 1 && !trans && inCircle) s_rainPx++;
     } else {
       uint8_t g8 = px[i];
-      col = (uint16_t)(((g8 & 0xF8) << 8) | ((g & 0xFC) << 3) | (g8 >> 3));
+      col = (uint16_t)(((g8 & 0xF8) << 8) | ((g8 & 0xFC) << 3) | (g8 >> 3));
     }
     linebuf[i] = col;
     if (s_pngMode == 0) opaque[i] = inCircle;            // base: ignore alpha
@@ -978,9 +979,7 @@ static bool decodePng(int mode) {
   bool benign = (rc != PNG_SUCCESS && s_wxRows >= pngH);
   if (rc != PNG_SUCCESS && !benign) {
     Serial.printf("[png] decode rc=%d rows=%d/%d\n", rc, s_wxRows, pngH);
-    return false;
   }
-  Serial.printf("[png] mode=%d rc=%d rows=%d/%d\n", mode, rc, s_wxRows, pngH);
   return true;
 }
 
@@ -989,7 +988,7 @@ static bool downloadToBuf(const char *url) {
   http.begin(url);
   int code = http.GET();
   if (code != 200) {
-    Serial.printf("[dl] %s http=%d\n", url, http);
+    Serial.printf("[dl] %s http=%d\n", url, code);
     http.end();
     return false;
   }
@@ -1183,8 +1182,7 @@ static void tickForecast(unsigned long now) {
   }
 }
 static void tickRain(unsigned long now) {
-  if ((!s_rainOk && now - s_rainTryMs >= 30000) ||
-      (s_rainOk && now - s_rainMs >= 600000)) {
+  if ((!s_rainOk && now - s_rainTryMs >= 30000) {
     s_rainTryMs = now;
     rainRefresh();
   }
