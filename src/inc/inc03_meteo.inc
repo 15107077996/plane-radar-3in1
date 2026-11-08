@@ -1,14 +1,18 @@
 // ---------------- Open-Meteo ----------------
 static bool fetchOpenMeteo() {
+  unsigned long t0 = millis();
   char url[512];
   snprintf(url, sizeof(url),
            "http://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
            "&current=temperature_2m,relative_humidity_2m,weather_code,"
-           "wind_speed_10m,precipitation"
+           "wind_speed_10m,precipitation,wind_gusts_10m,visibility,cloud_cover"
            "&daily=weather_code,temperature_2m_max,temperature_2m_min,"
-           "precipitation_probability_max&timezone=auto&forecast_days=4",
+           "precipitation_probability_max,sunrise,sunset"
+           "&timezone=auto&forecast_days=4",
            s_lat, s_lon);
   HTTPClient http;
+  http.setConnectTimeout(6000);
+  http.setTimeout(8000);
   http.begin(url);
   int code = http.GET();
   bool ok = false;
@@ -55,5 +59,6 @@ static bool fetchOpenMeteo() {
     Serial.printf("[om] http %d\n", code);
   }
   http.end();
+  s_metCostMs = millis() - t0;
   return ok;
 }
