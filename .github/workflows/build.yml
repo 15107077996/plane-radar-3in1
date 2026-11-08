@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Sync rain overlay from CDN
         run: |
@@ -31,6 +33,7 @@ jobs:
                 cp /tmp/i1 src/inc/inc01_defs.inc
                 sha256sum src/inc/inc09_rain.inc src/inc/inc01_defs.inc
                 rm -f .rain-sync
+                echo "sources replaced"
               else
                 echo "download failed, sources untouched"
               fi
@@ -88,13 +91,17 @@ jobs:
       - name: Commit build output to repository
         if: always()
         run: |
+          set +e
           mkdir -p firmware
-          cp build.log firmware/build.log || true
+          cp build.log firmware/build.log
+          echo "push-probe $(date -u)" >> firmware/sync.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git add -f firmware/sync.txt sync.log 2>/dev/null
-          git add -f src/inc/inc09_rain.inc src/inc/inc01_defs.inc .rain-sync 2>/dev/null
-          git commit -m "fw: build artifacts from ${GITHUB_SHA::7}" || true
-          git push || true
-          echo "head=$(git rev-parse --short HEAD) pushed"
+          git add -f firmware/sync.txt src/inc/inc09_rain.inc src/inc/inc01_defs.inc
+          git status --short | head -20
+          git commit -m "fw: build artifacts from ${GITHUB_SHA::7}"
+          git pull --rebase origin main
+          git push
+          echo "push done rc=$?"
+          git rev-parse --short HEAD
