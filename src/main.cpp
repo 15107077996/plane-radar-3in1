@@ -344,7 +344,7 @@ static bool fetchOpenMeteo() {
       if (!cur.isNull()) {
         s_temp = cur["temperature_2m"] | s_temp;
         s_hum = cur["relative_humidity_2m"] | s_hum;
-        s_wind = cur["wind_speed_10m"];
+        s_wind = cur["wind_speed_10m"] | s_wind;
         s_code = cur["weather_code"] | s_code;
       }
       JsonArray dcode = doc["daily"]["weather_code"];
@@ -596,10 +596,11 @@ static void computeMapped() {
   }
   // nearest first
   for (int a = 0; a < s_mappedCnt - 1; a++)
-    for (int b = a + 1; b < s_mappedCnt;
+    for (int b = a + 1; b < s_mappedCnt; b++) {
       if (s_mapped[b].d < s_mapped[a]) {
         Mapped t = s_mapped[a]; s_mapped[a] = s_mapped[b]; s_mapped[b] = t;
       }
+    }
 }
 
 static void drawRings() {
@@ -690,6 +691,44 @@ static void drawPlanes(float sweep) {
   (void)sweep;
   drawRadarBase();
 }
+
+#if 0
+// Legacy full-screen redraw kept for reference; compiler ignores this block.
+static void drawPlanes_old(float sweep) {
+  gfx->fillScreen(C_BLACK);
+  gfx->drawCircle(R_CX, R_CY, R_R, C_RED);
+  gfx->drawCircle(R_CX, R_CY, R_R - 3, C_RED);
+  gfx->drawLine(R_CX, R_CY - R_R, R_CX, R_CY + R_R, C_DKGREEN);
+  gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, R_CY, C_DKGREEN);
+  for (int f = 1; f <= 3; f++) {
+    int rr = (int)(R_R * f / 3);
+    gfx->drawCircle(R_CX, R_CY, rr, C_DKGREEN);
+  }
+  float R = rangeKm();
+  int shown = 0;
+  for (int i = 0; i < s_planeCount && shown < MAX_LABELS; i++) {
+    float d = planeDistKm(i);
+    if (d > R) continue;
+    float b = s_planes[i].bear * PI / 180;
+    int rr = (int)(R_R * d / R);
+    int x = R_CX + (int)(sin(b) * rr);
+    int y = R_CY - (int)(cos(b) * rr);
+    drawPlaneMarker(x, y, s_planes[i].head, altColor(s_planes[i].alt));
+    char dm[16];
+    snprintf(dm, sizeof(dm), "%.0fm", s_planes[i].distM);
+    txtAt(s_planes[i].call, x + 6, y - 4, C_WHITE);
+    if (s_planes[i].typ[0]) txtAt(s_planes[i].typ, x + 6, y + 8, C_YELLOW);
+    txtAt(dm, x + 6, y + 20, C_CYAN);
+    shown++;
+  }
+  // sweep line
+  float a = sweep * PI / 180;
+  int x1 = R_CX + (int)(sin(a) * R_R);
+  int y1 = R_CY - (int)(cos(a) * R_R);
+  gfx->drawLine(R_CX, R_CY, x1, y1, C_GREEN);
+  gfx->fillCircle(R_CX, R_CY, 3, C_WHITE);
+}
+#endif
 
 // ---------------- clock ----------------
 static void drawHands(int hour, int minute, int second) {
@@ -836,7 +875,7 @@ static void renderForecast() {
     txtC(s_city.c_str(), 176, C_YELLOW);
 
     // three bottom items: current temp (left), rain (center), humidity (right)
-    const char *rain = (s_code >= 51 && s_code >= 51 && s_code <= 99) ? wmoZh(s_code) : "无雨";
+    const char *rain = (s_code >= 51 && s_code <= 99) ? wmoZh(s_code) : "无雨";
     char tb[16], hb[16];
     snprintf(tb, sizeof(tb), "%.0fC", s_temp);
     snprintf(hb, sizeof(hb), "%.0f%%", s_hum);
@@ -985,7 +1024,7 @@ static bool rainRefresh() {
 
   HTTPClient http;
   http.begin("http://api.rainviewer.com/public/weather-maps.json");
-  int code = http.GET();
+  int code = http GET();
   if (code != 200) { Serial.printf("[rain] meta http=%d\n", code); http.end(); releasePngBuf(); return false; }
   String meta = http.getString();
   http.end();
@@ -1173,7 +1212,7 @@ void setup() {
   }
 
   WiFi.mode(WIFI_STA);
-  WiFi.begin(s_ssid.c_str(), s_pasword.c_str());
+  WiFi.begin(s_ssid.c_str(), s_pass.c_str());
   useFont(u8g2_font_helvB10_tr);
   txtC("WIFI...", 110, C_YELLOW);
   int wtry = 0;
