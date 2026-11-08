@@ -113,36 +113,60 @@ static bool fetchPlanes() {
     JsonDocument doc;
     if (!deserializeJson(doc, body)) {
       JsonArray ac = doc["ac"];
+      // Keep the MAX_PLANES nearest aircraft in distance order. The JSON array
+      // order is arbitrary, so taking the first 40 entries used to drop the
+      // nearby ones and leave the screen empty.
       int n = 0;
+      int seen = 0;
       for (JsonObject p : ac) {
-        if (n >= MAX_PLANES) break;
+        seen++;
         if (p["lat"].isNull() || p["lon"].isNull()) continue;
-        Plane &pl = s_planes[n];
+        Plane tmp;
         const char *fl = p["flight"];
         const char *tp = p["t"];
         String cs = fl ? String(fl) : String("????");
         cs.trim();
-        cs.toCharArray(pl.call, sizeof(pl.call));
+        cs.toCharArray(tmp.call, sizeof(tmp.call));
         String tt = tp ? String(tp) : String("");
-        tt.toCharArray(pl.typ, sizeof(pl.typ));
-        pl.lat = p["lat"].as<double>();
-        pl.lon = p["lon"].as<double>();
-        pl.alt = p["alt_baro"] | 0;
-        pl.head = p["track"] | 0;
-        pl.gs = p["gs"] | 0;
-        pl.baseMs = millis();
-        pl.distNm = haversineKm(s_lat, s_lon, pl.lat, pl.lon) / 1.852f;
-        pl.distM = haversineKm(s_lat, s_lon, pl.lat, pl.lon) * 1000.0f;
-        pl.bear = bearingTo(s_lat, s_lon, pl.lat, pl.lon);
-        n++;
+        tt.toCharArray(tmp.typ, sizeof(tmp.typ));
+        tmp.lat = p["lat"].as<double>();
+        tmp.lon = p["lon"].as<double>();
+        tmp.alt = p["alt_baro"] | 0;
+        tmp.head = p["track"] | 0;
+        tmp.gs = p["gs"] | 0;
+        tmp.baseMs = millis();
+        float dkm = haversineKm(s_lat, s_lon, tmp.lat, tmp.lon);
+        tmp.distNm = dkm / 1.852f;
+        tmp.distM = dkm * 1000.0f;
+        tmp.bear = bearingTo(s_lat, s_lon, tmp.lat, tmp.lon);
+        if (n >= MAX_PLANES && dkm >= s_planes[MAX_PLANES - 1].distM / 1000.0f)
+          continue;
+        int pos = (n < MAX_PLANES) ? n : (MAX_PLANES - 1);
+        while (pos > 0 && s_planes[pos - 1].distM > tmp.distM) {
+          s_planes[pos] = s_planes[pos - 1];
+          pos--;
+        }
+        s_planes[pos] = tmp;
+        if (n < MAX_PLANES) n++;
       }
       s_planeCount = n;
       s_planeMs = millis();
       ok = true;
+      // Once, on boot, pick the smallest range that actually holds traffic.
+      if (s_rangeAuto && s_planeCount > 0) {
+        int want = RANGE_N - 1;
+        for (int ri = 0; ri < RANGE_N; ri++) {
+          int fit = 0;
+          for (int i = 0; i < s_planeCount; i++)
+            if (s_planes[i].distM <= RANGES_KM[ri] * 1000.0f) fit++;
+          if (fit >= 3) { want = ri; break; }
+        }
+        s_rangeIdx = want;
+      }
       int nt = nearest();
-      Serial.printf("[planes] total=%d nearest=%d %s %.1fkm\n",
-                    s_planeCount, nt, nt >= 0 ? s_planes[nt].call : "-",
-                    nt >= 0 ? planeDistKm(nt) : 0);
+      Serial.printf("[planes] total=%d seen=%d nearest=%d %s %.0fkm range=%.0fkm\n",
+                    s_planeCount, seen, nt, nt >= 0 ? s_planes[nt].call : "-",
+                    nt >= 0 ? planeDistKm(nt) : 0, rangeKm());
     }
   } else {
     Serial.printf("[planes] http %d\n", code);
@@ -150,4 +174,3 @@ static bool fetchPlanes() {
   http.end();
   return ok;
 }
-
