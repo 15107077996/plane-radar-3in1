@@ -77,3 +77,4 @@ static void drawWxIcon(int cx, int cy, int code, int s) {
     gfx->fillTriangle(cx - 2, cy + s + 10, cx + 4, cy + s + 10, cx, cy + s + 16, C_YELLOW);
   }
 }
+
