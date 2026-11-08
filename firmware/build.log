@@ -41,7 +41,7 @@ Collecting bitarray<4.0,>=3.0.0 (from bitstring~=4.3.1)
 Collecting pycparser (from cffi>=1.14->cryptography~=45.0.3)
   Using cached pycparser-3.12-py3-none-any.whl.metadata (9.7 kB)
 Downloading cryptography-45.0.7-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 66.9 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 88.9 MB/s  0:00:00
 Downloading ecdsa-0.19.2-py2.py3-none-any.whl (150 kB)
 Downloading bitstring-4.3.1-py3-none-any.whl (71 kB)
 Using cached reedsolo-1.7.0-py3-none-any.whl (32 kB)
@@ -110,10 +110,10 @@ Successfully created esp32c3 image.
 Compiling .pio/build/esp32c3/lib260/U8g2/U8g2lib.cpp.o
 Archiving .pio/build/esp32c3/lib30b/libSPI.a
 Indexing .pio/build/esp32c3/lib30b/libSPI.a
-src/main.cpp:5:10: fatal error: inc/inc03_icon.inc: No such file or directory
- #include "inc/inc03_icon.inc"
-          ^~~~~~~~~~~~~~~~~~~~
-compilation terminated.
 Compiling .pio/build/esp32c3/lib260/U8g2/U8x8lib.cpp.o
+src/main.cpp:8:10: fatal error: inc/inc06_radar.inc: No such file or directory
+ #include "inc/inc06_radar.inc"
+          ^~~~~~~~~~~~~~~~~~~~~
+compilation terminated.
 *** [.pio/build/esp32c3/src/main.cpp.o] Error 1
-========================= [FAILED] Took 51.48 seconds =========================
+========================= [FAILED] Took 47.34 seconds =========================
