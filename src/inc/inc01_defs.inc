@@ -55,7 +55,7 @@
 #define C_DKBLUE 0x0210
 
 // ---------------- version ----------------
-#define FW_VER "1.2.4-c3"
+#define FW_VER "1.2.5-c3"
 #define CFG_VER 106
 // Manual home location: Ganzhou Nankang District (district govt 25.6614N 114.7650E).
 // IP geolocation on this network wrongly resolves to Beijing, so manual mode is default.
@@ -69,11 +69,14 @@
 #define PNG_BUF_CAP 73728
 
 // ---------------- screens ----------------
-enum { SCR_CLOCK = 0, SCR_PLANES = 1, SCR_FORECAST = 2, SCR_RAIN = 3 };
+ENUM_SCR
 
-// ---------------- ranges (6 steps) ----------------
-static const float RANGES_KM[6] = {5, 10, 25, 50, 100, 200};
-static int s_rangeIdx = 4; // default 100km so aircraft are visible
+// ---------------- ranges ----------------
+// ADS-B coverage around Nankang is sparse: the nearest aircraft is often
+// 200km+ away, so the top step reaches 400km. The default follows the traffic.
+#define RANGE_N 7
+RANGE_TABLE
+static bool s_rangeAuto = true; // cleared once the user long-presses for a range
 static float rangeKm() { return RANGES_KM[s_rangeIdx]; }
 static int s_screen = SCR_CLOCK;
 
@@ -148,6 +151,7 @@ static unsigned long s_rainTryMs = 0;
 // ---------------- forward ----------------
 static void renderClock();
 static void drawPlanes(float sweep);
+static void drawCardinals();
 static void renderForecast();
 static bool rainRefresh();
 static void enterPage(int page);
@@ -156,4 +160,3 @@ static void buttonResync();
 static bool fetchOpenMeteo();
 static void drawWxIcon(int cx, int cy, int code, int s);
 static const char *wmoZh(int code);
-
