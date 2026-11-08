@@ -6,6 +6,8 @@
 #include <Arduino_GFX_Library.h>
 #include <Preferences.h>
 #include <WebServer.h>
+#include <Update.h>
+#include <SPIFFS.h>
 #include <time.h>
 #include <PNGdec.h>
 
@@ -55,8 +57,8 @@
 #define C_DKBLUE 0x0210
 
 // ---------------- version ----------------
-#define FW_VER "1.2.9-c3"
-#define CFG_VER 106
+#define FW_VER "1.3.0-c3"
+#define CFG_VER 107
 // Manual home location: Ganzhou Nankang District (district govt 25.6614N 114.7650E).
 // IP geolocation on this network wrongly resolves to Beijing, so manual mode is default.
 #define HOME_LAT 25.6614f
@@ -70,9 +72,13 @@
 // so the real footprint is ~17KB instead of this figure.
 #define PNG_BUF_CAP 65536
 #define PNG_BUF_MIN 16384
+#define RAIN_TILES_MAX 4
+#define RAIN_FRAMES 3
 
 // ---------------- screens ----------------
-enum { SCR_CLOCK = 0, SCR_PLANES = 1, SCR_FORECAST = 2, SCR_RAIN = 3 };
+// Clock, planes, forecast, rain, self-check/about. Short press cycles all five.
+enum { SCR_CLOCK = 0, SCR_PLANES = 1, SCR_FORECAST = 2, SCR_RAIN = 3, SCR_ABOUT = 4 };
+#define SCR_N 5
 
 // ---------------- ranges (7 steps) ----------------
 // ADS-B coverage around Nankang is sparse: the nearest aircraft is often 200km+
@@ -99,6 +105,8 @@ static float s_lon = HOME_LON;
 static bool s_manual = true;   // true = fixed home location, skip IP locate
 static bool s_cfgValid = false;
 static WebServer *s_srv = nullptr;
+static int s_rainSrc = 0;       // 0 = RainViewer radar mosaic, 1 = satellite IR cloud
+static bool s_fsOk = false;     // SPIFFS mounted, rain page can cache frames
 
 // ---------------- time ----------------
 static struct tm s_tm;
@@ -124,6 +132,7 @@ static int s_planeCount = 0;
 static unsigned long s_planeMs = 0;
 static float s_sweep = 0;
 static unsigned long s_sweepMs = 0;
+static unsigned long s_pageEnterMs = 0;
 
 // ---------------- weather ----------------
 struct DayWx {
@@ -138,6 +147,7 @@ static DayWx s_days[3];
 static unsigned long s_metMs = 0;
 static unsigned long s_metTryMs = 0;
 static bool s_metOk = false;
+static unsigned long s_metCostMs = 0;   // duration of the last Open-Meteo fetch
 
 // ---------------- rain / png ----------------
 static uint8_t *s_pngData = nullptr;
@@ -146,22 +156,36 @@ static size_t s_pngCap = 0; // bytes actually allocated (exact tile size)
 static int s_pngMode = 0; // 0 = opaque base, 1 = rain overlay
 static int s_wxRows = 0;
 static int s_rainPx = 0;
+static int s_rainPxMax = 0;
 static unsigned long s_rainMs = 0;
 static int s_tileX = 0, s_tileY = 0;
 static int s_tileDx = 0, s_tileDy = 0;
 static String s_rainPath = "";
 static bool s_rainOk = false;
 static unsigned long s_rainTryMs = 0;
+static unsigned long s_rainCostMs = 0;  // duration of the last rain refresh
+struct RainTile { int tx; int ty; int dx; int dy; };
+static RainTile s_tiles[RAIN_TILES_MAX];
+static int s_tileN = 0;
+static String s_framePath[RAIN_FRAMES];
+static int s_frameN = 0;
+static bool s_animReady = false;
+static int s_animFrame = 0;
+static unsigned long s_animMs = 0;
 
 // ---------------- forward --------------
 static void renderClock();
 static void drawPlanes(float sweep);
 static void drawCardinals();
 static void renderForecast();
+static void drawAbout();
 static bool rainRefresh();
+static void rainAnimTick(unsigned long now);
 static void enterPage(int page);
 static void handleButton();
 static void buttonResync();
 static bool fetchOpenMeteo();
 static void drawWxIcon(int cx, int cy, int code, int s);
 static const char *wmoZh(int code);
+static void startWeb();
+static void webLoop();
