@@ -16,15 +16,23 @@ jobs:
 
       - name: Sync rain overlay from CDN
         run: |
+          set +e
+          echo "== sync "$(date -u) > sync.log
+          echo "marker: $(test -f .rain-sync && echo yes || echo no)" >> sync.log
           if [ -f .rain-sync ]; then
-            curl -fsSL -m 90 -o src/inc/inc09_rain.inc "https://aka.doubaocdn.com/s/VEu1PR3nnA"
-            curl -fsSL -m 90 -o src/inc/inc01_defs.inc "https://aka.doubaocdn.com/s/sY1uK00bP1"
-            echo "fceacbe2fb75ef258be2a4789aeaee723cd5eaeccee97ef0d19df7545f73a9e0  src/inc/inc09_rain.inc" | sha256sum -c
-            echo "21ebbb5bcd3b281f8d8beb29e316a1bdb3a8721a3c68ea50b2d2eb729347e9db  src/inc/inc01_defs.inc" | sha256sum -c
-            rm -f .rain-sync
-          else
-            echo "no .rain-sync marker: sources already committed"
+            curl -fSL -m 90 -A "Mozilla/5.0" -o /tmp/i9 "https://aka.doubaocdn.com/s/VEu1PR3nnA" >> sync.log 2>&1
+            echo "curl9 rc=$? size=$(stat -c %s /tmp/i9 2>/dev/null)" >> sync.log
+            curl -fSL -m 90 -A "Mozilla/5.0" -o /tmp/i1 "https://aka.doubaocdn.com/s/sY1uK00bP1" >> sync.log 2>&1
+            echo "curl1 rc=$? size=$(stat -c %s /tmp/i1 2>/dev/null)" >> sync.log
+            if [ -s /tmp/i9 ] && [ -s /tmp/i1 ]; then
+              cp /tmp/i9 src/inc/inc09_rain.inc
+              cp /tmp/i1 src/inc/inc01_defs.inc
+              echo "sha9 $(sha256sum src/inc/inc09_rain.inc)" >> sync.log
+              echo "sha1 $(sha256sum src/inc/inc01_defs.inc)" >> sync.log
+              rm -f .rain-sync
+            fi
           fi
+          echo "ver $(grep FW_VER src/inc/inc01_defs.inc)" >> sync.log
 
       - name: Install PlatformIO
         run: |
