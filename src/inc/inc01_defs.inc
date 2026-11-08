@@ -69,14 +69,15 @@
 #define PNG_BUF_CAP 73728
 
 // ---------------- screens ----------------
-ENUM_SCR
+enum { SCR_CLOCK = 0, SCR_PLANES = 1, SCR_FORECAST = 2, SCR_RAIN = 3 };
 
-// ---------------- ranges ----------------
-// ADS-B coverage around Nankang is sparse: the nearest aircraft is often
-// 200km+ away, so the top step reaches 400km. The default follows the traffic.
+// ---------------- ranges (7 steps) ----------------
+// ADS-B coverage around Nankang is sparse: the nearest aircraft is often 200km+
+// away, so the top step reaches 400km. The default follows the traffic.
 #define RANGE_N 7
-RANGE_TABLE
-static bool s_rangeAuto = true; // cleared once the user long-presses for a range
+static const float RANGES_KM[RANGE_N] = {10, 25, 50, 100, 200, 300, 400};
+static int s_rangeIdx = 6;       // boot default 400km; auto-fit narrows it later
+static bool s_rangeAuto = true;  // cleared once the user long-presses for a range
 static float rangeKm() { return RANGES_KM[s_rangeIdx]; }
 static int s_screen = SCR_CLOCK;
 
