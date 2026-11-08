@@ -55,7 +55,7 @@
 #define C_DKBLUE 0x0210
 
 // ---------------- version ----------------
-#define FW_VER "1.2.2-c3"
+#define FW_VER "1.2.3-c3"
 #define CFG_VER 105
 #define WX_ZOOM 7
 #define FETCH_NM 250.0
@@ -96,10 +96,12 @@ static int s_lastSec = -1;
 struct Plane {
   char call[12];
   char typ[8];
-  double lat;
+  double lat;          // last network-reported position (dead-reckoning base)
   double lon;
   int alt;
-  int head;
+  int head;            // track, degrees
+  float gs;            // ground speed, knots
+  unsigned long baseMs; // time of the network fix
   float distNm;
   float distM;
   float bear;
