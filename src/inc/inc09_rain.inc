@@ -39,7 +39,7 @@ static void pngRow(PNGDRAW *pDraw) {
     if (iPixelType == PNG_PIXEL_TRUECOLOR_ALPHA) {
       uint8_t a = px[i * 4 + 3];
       if (a < 10) trans = true;
-      else if (s_pngMode == 1) col = rainColor(a);
+      else if (s_pngMode == 1 && s_rainSrc == 0) col = rainColor(a);
       else col = (uint16_t)(((px[i * 4] & 0xF8) << 8) |
                             ((px[i * 4 + 1] & 0xFC) << 3) | (px[i * 4 + 2] >> 3));
       if (s_pngMode == 1 && !trans && inCircle) s_rainPx++;
@@ -50,7 +50,7 @@ static void pngRow(PNGDRAW *pDraw) {
       uint8_t idx = px[i];
       uint8_t a = pDraw->pPalette[768 + idx]; // tRNS alpha, default 255
       if (idx == 0 || a < 10) trans = true;
-      else if (s_pngMode == 1) col = rainColor(a);
+      else if (s_pngMode == 1 && s_rainSrc == 0) col = rainColor(a);
       else {
         uint8_t r = pDraw->pPalette[idx * 3];
         uint8_t g = pDraw->pPalette[idx * 3 + 1];
@@ -71,7 +71,7 @@ static void pngRow(PNGDRAW *pDraw) {
     // full-width single burst, out-of-circle black
     gfx->draw16bitRGBBitmap(s_tileDx, ty, linebuf, 256, 1);
   } else {
-    // contiguous opaque runs, now overwriting base on transparent pixels
+    // contiguous opaque runs
     int i = 0;
     while (i < w) {
       if (!opaque[i]) { i++; continue; }
@@ -99,12 +99,13 @@ static bool decodePng(int mode) {
     Serial.printf("[png] decode rc=%d rows=%d/%d\n", rc, s_wxRows, pngH);
     return false;
   }
-  Serial.printf("[png] mode=%d rc=%d rows=%d/%d\n", mode, rc, s_wxRows, pngH);
   return true;
 }
 
 static bool downloadToBuf(const char *url) {
   HTTPClient http;
+  http.setConnectTimeout(6000);
+  http.setTimeout(8000);
   http.begin(url);
   int code = http.GET();
   if (code != 200) {
@@ -149,9 +150,67 @@ static bool downloadToBuf(const char *url) {
   return true;
 }
 
-static bool rainRefresh() {
-  s_rainOk = false;
+static void rainTileUrl(char *out, size_t n, const String &path, int tx, int ty) {
+  if (s_rainSrc == 1)
+    snprintf(out, n, "https://tilecache.rainviewer.com%s/256/%d/%d/%d/0/0_0.png",
+             path.c_str(), WX_ZOOM, tx, ty);
+  else
+    snprintf(out, n, "http://tilecache.rainviewer.com%s/256/%d/%d/%d/2/1_1.png",
+             path.c_str(), WX_ZOOM, tx, ty);
+}
+
+static void drawRainHud() {
+  gfx->drawCircle(R_CX, R_CY, R_R, C_WHITE);
+  int cover = s_rainPxMax * 100 / 39408;
+  char st[32];
+  snprintf(st, sizeof(st), "OK R%d%% %d/%d", cover, s_animReady ? s_animFrame + 1 : 1,
+           s_animReady ? s_frameN : 1);
+  useFont(u8g2_font_helvB08_tr);
+  txtC(st, 224, C_GREEN);
+}
+
+// One animation frame = base tiles from flash, then that frame's rain tiles on
+// top. Redrawing the base is what erases the previous frame, so the echoes
+// actually travel instead of piling up.
+static bool drawFrame(int f) {
+  bool ok = false;
   s_rainPx = 0;
+  for (int i = 0; i < s_tileN; i++) {
+    char p[16];
+    snprintf(p, sizeof(p), "/b%d.png", i);
+    s_tileDx = s_tiles[i].dx;
+    s_tileDy = s_tiles[i].dy;
+    if (fsLoad(p) && decodePng(0)) ok = true;
+  }
+  if (ok) {
+    for (int i = 0; i < s_tileN; i++) {
+      char p[16];
+      snprintf(p, sizeof(p), "/r%d_%d.png", f, i);
+      s_tileDx = s_tiles[i].dx;
+      s_tileDy = s_tiles[i].dy;
+      if (fsLoad(p)) decodePng(1);
+    }
+  }
+  if (s_rainPx > s_rainPxMax) s_rainPxMax = s_rainPx;
+  return ok;
+}
+
+static void rainAnimTick(unsigned long now) {
+  if (!s_animReady || s_frameN < 2) return;
+  if (now - s_animMs < 500) return;
+  s_animMs = now;
+  s_animFrame = (s_animFrame + 1) % s_frameN;
+  drawFrame(s_animFrame);
+  drawRainHud();
+}
+
+static bool rainRefresh() {
+  unsigned long t0 = millis();
+  s_rainOk = false;
+  s_animReady = false;
+  s_frameN = 0;
+  s_rainPx = 0;
+  s_rainPxMax = 0;
   // Sanity check before touching the network: the smallest tile needs this much.
   if (ESP.getMaxAllocHeap() < PNG_BUF_MIN) {
     Serial.printf("[mem] low heap free=%u maxblk=%u\n", ESP.getFreeHeap(),
@@ -162,13 +221,15 @@ static bool rainRefresh() {
     return false;
   }
 
-  // Show an immediate loading screen so the page is never mistaken for missing.
+  // Immediate loading screen so the page is never mistaken for missing.
   gfx->fillScreen(C_BLACK);
   useFont(u8g2_font_unifont_t_chinese4);
   txtC("降雨云图", 104, C_YELLOW);
   txtC("加载中...", 126, C_WHITE);
 
   HTTPClient http;
+  http.setConnectTimeout(6000);
+  http.setTimeout(8000);
   http.begin("http://api.rainviewer.com/public/weather-maps.json");
   int code = http.GET();
   if (code != 200) {
@@ -182,29 +243,36 @@ static bool rainRefresh() {
     Serial.println("[rain] meta json fail");
     txtC("云图数据错误", 150, C_RED); releasePngBuf(); return false;
   }
-  JsonArray now = doc["radar"]["nowcast"];
-  JsonArray past = doc["radar"]["past"];
-  if ((now.isNull() || now.size() == 0) && (past.isNull() || past.size() == 0)) {
+
+  // Frame list: radar past frames (newest 3) or satellite IR (newest 3).
+  JsonArray arr = (s_rainSrc == 1) ? doc["satellite"]["infrared"].as<JsonArray>()
+                                   : doc["radar"]["past"].as<JsonArray>();
+  int total = (arr.isNull()) ? 0 : (int)arr.size();
+  if (total <= 0) {
     Serial.println("[rain] no frames");
-    txtC("暂无云图", 150, C_RED); releasePngBuf(); return false;
+    txtC("暂无云图", 150, C_RED);
+    releasePngBuf();
+    return false;
   }
-  // Prefer the first nowcast frame; if nowcast is empty, use the latest past frame.
-  if (!now.isNull() && now.size() > 0) {
-    s_rainPath = (const char *)now[0]["path"];
-  } else {
-    s_rainPath = (const char *)past[past.size() - 1]["path"];
-    Serial.println("[rain] nowcast empty, use latest past");
+  int want = (total < RAIN_FRAMES) ? total : RAIN_FRAMES;
+  for (int i = 0; i < want; i++) {
+    int si = total - want + i;
+    const char *pth = arr[si]["path"];
+    s_framePath[i] = pth ? String(pth) : String("");
+    if (s_framePath[i].length() == 0) want = i;
   }
-  if (s_rainPath.length() == 0) {
-    Serial.println("[rain] no path");
-    txtC("暂无云图", 150, C_RED); releasePngBuf(); return false;
+  s_frameN = want;
+  if (s_frameN <= 0) {
+    txtC("暂无云图", 150, C_RED);
+    releasePngBuf();
+    return false;
   }
+  s_rainPath = s_framePath[s_frameN - 1];
+  Serial.printf("[rain] frames=%d src=%d last=%s\n", s_frameN, s_rainSrc,
+                s_rainPath.c_str());
 
   double fx, fy;
   lonLatToTile((double)s_lat, (double)s_lon, WX_ZOOM, s_tileX, s_tileY, fx, fy);
-  // One 256x256 tile cannot fill a 224px dial: the home pixel sits off-centre
-  // inside its tile, so the dial spans 2..4 tiles. Draw every tile the dial
-  // touches, one at a time, reusing the same small buffer.
   double gx = (double)s_tileX * 256.0 + fx;
   double gy = (double)s_tileY * 256.0 + fy;
   int txA = (int)floor((gx - R_R) / 256.0);
@@ -216,48 +284,97 @@ static bool rainRefresh() {
   if (txB > 127) txB = 127;
   if (tyB > 127) tyB = 127;
 
-  gfx->fillScreen(C_BLACK);
-  bool ok = false;
-  bool baseBad = false, rainBad = false;
-  char baseUrl[200];
-  char rainUrl[240];
-  int tcount = 0;
-  for (int ty = tyA; ty <= tyB; ty++) {
-    for (int tx = txA; tx <= txB; tx++) {
-      s_tileDx = (int)round(R_CX - (gx - (double)tx * 256.0));
-      s_tileDy = (int)round(R_CY - (gy - (double)ty * 256.0));
-      // base map (Gaode, opaque)
-      snprintf(baseUrl, sizeof(baseUrl),
-               "http://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1"
-               "&scale=1&style=8&x=%d&y=%d&z=%d", tx, ty, WX_ZOOM);
-      if (!downloadToBuf(baseUrl)) { baseBad = true; continue; }
-      if (!decodePng(0)) { baseBad = true; continue; }
-      tcount++;
-      // rain overlay for the same tile
-      snprintf(rainUrl, sizeof(rainUrl),
-               "http://tilecache.rainviewer.com%s/256/%d/%d/%d/2/1_1.png",
-               s_rainPath.c_str(), WX_ZOOM, tx, ty);
-      if (!downloadToBuf(rainUrl)) { rainBad = true; continue; }
-      if (!decodePng(1)) { rainBad = true; continue; }
-      ok = true;
+  s_tileN = 0;
+  char url[240];
+  for (int ty = tyA; ty <= tyB && s_tileN < RAIN_TILES_MAX; ty++) {
+    for (int tx = txA; tx <= txB && s_tileN < RAIN_TILES_MAX; tx++) {
+      s_tiles[s_tileN].tx = tx;
+      s_tiles[s_tileN].ty = ty;
+      s_tiles[s_tileN].dx = (int)round(R_CX - (gx - (double)tx * 256.0));
+      s_tiles[s_tileN].dy = (int)round(R_CY - (gy - (double)ty * 256.0));
+      s_tileN++;
     }
   }
-  if (!ok) {
+
+  // Without a mounted filesystem the frames cannot be cached, so fall back to
+  // a single static overlay (old behaviour) instead of showing nothing.
+  bool single = (!s_fsOk || s_frameN < 2);
+  gfx->fillScreen(C_BLACK);
+  bool baseOk = false, rainOk = false;
+  for (int i = 0; i < s_tileN; i++) {
+    s_tileDx = s_tiles[i].dx;
+    s_tileDy = s_tiles[i].dy;
+    snprintf(url, sizeof(url),
+             "http://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1"
+             "&scale=1&style=8&x=%d&y=%d&z=%d",
+             s_tiles[i].tx, s_tiles[i].ty, WX_ZOOM);
+    if (!downloadToBuf(url)) continue;
+    decodePng(0);
+    baseOk = true;
+    char p[16];
+    snprintf(p, sizeof(p), "/b%d.png", i);
+    fsSave(p, s_pngLen);
+  }
+  if (!baseOk) {
     useFont(u8g2_font_unifont_t_chinese4);
-    txtC(baseBad ? "底图加载失败" : "雨层加载失败", 120, C_RED);
+    txtC("底图加载失败", 120, C_RED);
+    releasePngBuf();
+    return false;
+  }
+
+  if (single) {
+    // draw the newest frame only, straight over the base
+    for (int i = 0; i < s_tileN; i++) {
+      s_tileDx = s_tiles[i].dx;
+      s_tileDy = s_tiles[i].dy;
+      rainTileUrl(url, sizeof(url), s_rainPath, s_tiles[i].tx, s_tiles[i].ty);
+      if (!downloadToBuf(url)) continue;
+      decodePng(1);
+      rainOk = true;
+    }
   } else {
-    gfx->drawCircle(R_CX, R_CY, R_R, C_WHITE);
-    int cover = s_rainPx * 100 / 39408;
-    useFont(u8g2_font_helvB10_tr);
-    char st[32];
-    snprintf(st, sizeof(st), "OK R%d%%", cover);
-    txtC(st, 224, C_GREEN);
+    // download every frame and cache it, then start the loop animation
+    useFont(u8g2_font_unifont_t_chinese4);
+    for (int f = 0; f < s_frameN; f++) {
+      char prog[24];
+      snprintf(prog, sizeof(prog), "云图 %d/%d", f + 1, s_frameN);
+      gfx->fillRect(60, 96, 120, 20, C_BLACK);
+      txtC(prog, 100, C_CYAN);
+      bool any = false;
+      for (int i = 0; i < s_tileN; i++) {
+        s_tileDx = s_tiles[i].dx;
+        s_tileDy = s_tiles[i].dy;
+        rainTileUrl(url, sizeof(url), s_framePath[f], s_tiles[i].tx, s_tiles[i].ty);
+        if (!downloadToBuf(url)) continue;
+        char p[16];
+        snprintf(p, sizeof(p), "/r%d_%d.png", f, i);
+        fsSave(p, s_pngLen);
+        any = true;
+      }
+      if (any) rainOk = true;
+    }
+    gfx->fillRect(50, 92, 140, 26, C_BLACK);
+    if (rainOk) {
+      s_animReady = true;
+      s_animFrame = s_frameN - 1;
+      drawFrame(s_animFrame);
+    }
+  }
+
+  if (!rainOk) {
+    useFont(u8g2_font_unifont_t_chinese4);
+    txtC("雨层加载失败", 120, C_RED);
+  } else {
+    drawRainHud();
     s_rainMs = millis();
     s_rainOk = true;
-    Serial.printf("[rain] ok tiles=%d cover=%d%% free=%u\n", tcount, cover,
-                  ESP.getFreeHeap());
+    s_animMs = millis();
+    Serial.printf("[rain] ok tiles=%d frames=%d cover=%d%% free=%u\n", s_tileN,
+                  s_frameN, s_rainPxMax * 100 / 39408, ESP.getFreeHeap());
   }
 
   releasePngBuf();
-  return ok;
+  (void)t0;
+  s_rainCostMs = millis() - t0;
+  return rainOk;
 }
