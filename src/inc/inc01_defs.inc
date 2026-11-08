@@ -55,7 +55,7 @@
 #define C_DKBLUE 0x0210
 
 // ---------------- version ----------------
-#define FW_VER "1.2.5-c3"
+#define FW_VER "1.2.6-c3"
 #define CFG_VER 106
 // Manual home location: Ganzhou Nankang District (district govt 25.6614N 114.7650E).
 // IP geolocation on this network wrongly resolves to Beijing, so manual mode is default.
@@ -66,7 +66,10 @@
 #define FETCH_NM 250.0
 #define MAX_PLANES 40
 #define MAX_LABELS 3
-#define PNG_BUF_CAP 73728
+// Upper bound only: the buffer is allocated to the exact tile Content-Length,
+// so the real footprint is ~17KB instead of this figure.
+#define PNG_BUF_CAP 65536
+#define PNG_BUF_MIN 16384
 
 // ---------------- screens ----------------
 enum { SCR_CLOCK = 0, SCR_PLANES = 1, SCR_FORECAST = 2, SCR_RAIN = 3 };
@@ -139,6 +142,7 @@ static bool s_metOk = false;
 // ---------------- rain / png ----------------
 static uint8_t *s_pngData = nullptr;
 static size_t s_pngLen = 0;
+static size_t s_pngCap = 0; // bytes actually allocated (exact tile size)
 static int s_pngMode = 0; // 0 = opaque base, 1 = rain overlay
 static int s_wxRows = 0;
 static int s_rainPx = 0;
