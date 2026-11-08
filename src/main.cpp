@@ -68,7 +68,7 @@ enum { SCR_CLOCK = 0, SCR_PLANES = 1, SCR_FORECAST = 2, SCR_RAIN = 3 };
 
 // ---------------- ranges (6 steps) ----------------
 static const float RANGES_KM[6] = {5, 10, 25, 50, 100, 200};
-static int s_rangeIdx = 1; // default 10km
+static int s_rangeIdx = 4; // default 100km so aircraft are visible
 static float rangeKm() { return RANGES_KM[s_rangeIdx]; }
 static int s_screen = SCR_CLOCK;
 
@@ -241,7 +241,7 @@ static void saveCfg() {
 }
 
 static void handleRoot() {
-  String html = "<!doctype html><html><head><meta charset=utf-8>"
+  String html = "<doctype html><html><head><meta charset=utf-8>"
                 "<meta name=viewport content='width=device-width,initial-scale=1'>"
                 "<title>PlaneRadar Setup</title></head><body>"
                 "<h2>PlaneRadar WiFi</h2><form method=POST action=/save>"
@@ -281,7 +281,8 @@ static void startPortal() {
 // ---------------- IP locate ----------------
 static void locateByIp() {
   HTTPClient http;
-  http.begin("http://ip-api.com/json/?fields=status,message,city,lat,lon");
+  // lang=zh-CN -> Chinese city/region names
+  http.begin("http://ip-api.com/json/?fields=status,message,city,regionName,lat,lon&lang=zh-CN");
   int code = http.GET();
   if (code == 200) {
     String body = http.getString();
@@ -292,9 +293,12 @@ static void locateByIp() {
         float la = doc["lat"] | s_lat;
         float lo = doc["lon"] | s_lon;
         const char *ci = doc["city"];
+        const char *rg = doc["regionName"];
         s_lat = la;
         s_lon = lo;
-        if (ci) s_city = String(ci);
+        // Prefer Chinese city; fall back to region, then keep current.
+        if (ci && ci[0]) s_city = String(ci);
+        else if (rg && rg[0]) s_city = String(rg);
         saveCfg();
         Serial.printf("[loc] %s %.4f %.4f\n", s_city.c_str(), s_lat, s_lon);
       } else {
@@ -471,17 +475,37 @@ static uint16_t altColor(int alt) {
   return C_RED;
 }
 
+// Rotate a body-coordinate point (lx=forward, ly=right) by heading.
+static void planeRot(int x, int y, float sn, float cs,
+                     float lx, float ly, int &ox, int &oy) {
+  ox = x + (int)(lx * sn + ly * cs + 0.5f);
+  oy = y + (int)(-lx * cs + ly * sn + 0.5f);
+}
+static void fillTriBody(int x, int y, float sn, float cs,
+                        float x0, float y0, float x1, float y1,
+                        float x2, float y2, uint16_t col) {
+  int ax, ay, bx, by, cx, cy;
+  planeRot(x, y, sn, cs, x0, y0, ax, ay);
+  planeRot(x, y, sn, cs, x1, y1, bx, by);
+  planeRot(x, y, sn, cs, x2, y2, cx, cy);
+  gfx->fillTriangle(ax, ay, bx, by, cx, cy, col);
+}
+
+// Clear top-view airplane icon (fuselage + swept wings + tail), rotated by heading.
 static void drawPlaneMarker(int x, int y, int head, uint16_t col) {
-  float a = head * PI / 180;
-  float fx = sin(a), fy = -cos(a);
-  float rx = cos(a), ry = sin(a);
-  int px[4], py[4];
-  px[0] = x + (int)(fx * 7); py[0] = y + (int)(fy * 7);
-  px[1] = x + (int)(-fx * 5 + rx * 4); py[1] = y + (int)(-fy * 5 + ry * 4);
-  px[2] = x + (int)(-fx * 2); py[2] = y + (int)(-fy * 2);
-  px[3] = x + (int)(-fx * 5 - rx * 4); py[3] = y + (int)(-fy * 5 - ry * 4);
-  gfx->fillTriangle(px[0], py[0], px[1], py[1], px[2], py[2], col);
-  gfx->fillTriangle(px[2], py[2], px[3], py[3], px[0], py[0], col);
+  float a = head * PI / 180.0f;
+  float sn = sin(a), cs = cos(a);
+  // fuselage (nose -> tail)
+  fillTriBody(x, y, sn, cs, 8, 0, -6, 1, -6, -1, col);
+  // right main wing
+  fillTriBody(x, y, sn, cs, 0, 0, -3, 9, -3, 0, col);
+  fillTriBody(x, y, sn, cs, -3, 9, -4, 9, -3, 0, col);
+  // left main wing
+  fillTriBody(x, y, sn, cs, 0, 0, -3, 0, -3, -9, col);
+  fillTriBody(x, y, sn, cs, -3, 0, -4, -9, -3, -9, col);
+  // tail planes
+  fillTriBody(x, y, sn, cs, -5, 0, -7, 3, -6, 0, col);
+  fillTriBody(x, y, sn, cs, -5, 0, -6, 0, -7, -3, col);
 }
 
 static bool fetchPlanes() {
@@ -541,24 +565,66 @@ static bool fetchPlanes() {
   return ok;
 }
 
-static void drawPlanes(float sweep) {
-  gfx->fillScreen(C_BLACK);
+// ---------------- radar (static base + animated sweep wedge) ----------------
+#define WEDGE_N 10
+#define WEDGE_STEP 4
+static const uint16_t WEDGE_COL[WEDGE_N] = {
+    0x07E0, 0x0640, 0x0500, 0x0400, 0x0320,
+    0x0280, 0x0200, 0x0180, 0x0120, 0x00C0};
 
-  // thick red outer ring
-  for (int i = 0; i < 4; i++)
-    gfx->drawCircle(R_CX, R_CY, R_R - i, C_RED);
+struct Mapped { int i; int x; int y; float d; };
+static Mapped s_mapped[MAX_PLANES];
+static int s_mappedCnt = 0;
 
-  // range circles
+static void computeMapped() {
   float R = rangeKm();
+  s_mappedCnt = 0;
+  for (int i = 0; i < s_planeCount; i++) {
+    float d = planeDistKm(i);
+    if (d > R) continue;
+    float b = s_planes[i].bear * PI / 180;
+    int rr = (int)(R_R * d / R);
+    int x = R_CX + (int)(sin(b) * rr);
+    int y = R_CY - (int)(cos(b) * rr);
+    if (s_mappedCnt < MAX_PLANES) {
+      s_mapped[s_mappedCnt].i = i;
+      s_mapped[s_mappedCnt].x = x;
+      s_mapped[s_mappedCnt].y = y;
+      s_mapped[s_mappedCnt].d = d;
+      s_mappedCnt++;
+    }
+  }
+  // nearest first
+  for (int a = 0; a < s_mappedCnt - 1; a++)
+    for (int b = a + 1; b < s_mappedCnt; b++)
+      if (s_mapped[b].d < s_mapped[a]) {
+        Mapped t = s_mapped[a]; s_mapped[a] = s_mapped[b]; s_mapped[b] = t;
+      }
+}
+
+static void drawRings() {
+  float R = rangeKm();
+  for (int i = 0; i < 4; i++) gfx->drawCircle(R_CX, R_CY, R_R - i, C_RED);
   for (int f = 1; f <= 3; f++) {
     int rr = (int)(R_R * f / 3.0f);
     gfx->drawCircle(R_CX, R_CY, rr, C_DKGREEN);
   }
-  // green crosshair
   gfx->drawLine(R_CX, R_CY - R_R, R_CX, R_CY + R_R, C_DKGREEN);
   gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, R_CY, C_DKGREEN);
+  (void)R;
+}
 
-  // range labels on right
+static void drawMarkers() {
+  for (int i = 0; i < s_mappedCnt; i++) {
+    int pi = s_mapped[i].i;
+    drawPlaneMarker(s_mapped[i].x, s_mapped[i].y, s_planes[pi].head,
+                    altColor(s_planes[pi].alt));
+  }
+}
+
+// range numbers + header + per-plane text labels (all static text)
+static void drawLabels() {
+  float R = rangeKm();
   useFont(u8g2_font_helvB08_tr);
   char lb[16];
   for (int f = 1; f <= 3; f++) {
@@ -569,70 +635,60 @@ static void drawPlanes(float sweep) {
     txtAt(lb, R_CX + 2, R_CY - rr + 3, C_CYAN);
   }
 
-  // sweep with fading trails
-  static const int BACK[3] = {4, 8, 12};
-  static const uint16_t TRAIL[3] = {0x0320, 0x0200, 0x0100};
-  for (int i = 0; i < 3; i++) {
-    float a = (sweep - BACK[i]) * PI / 180;
-    int ex = R_CX + (int)(sin(a) * (R_R - 6));
-    int ey = R_CY - (int)(cos(a) * (R_R - 6));
-    gfx->drawLine(R_CX, R_CY, ex, ey, TRAIL[i]);
-  }
-  float sa = sweep * PI / 180;
-  int sx = R_CX + (int)(sin(sa) * (R_R - 6));
-  int sy = R_CY - (int)(cos(sa) * (R_R - 6));
-  gfx->drawLine(R_CX, R_CY, sx, sy, C_GREEN);
-  gfx->fillCircle(R_CX, R_CY, 3, C_WHITE);
-
-  // map in-range planes
-  struct MP { int i; int x; int y; float d; };
-  MP mapped[MAX_PLANES];
-  int mc = 0;
-  for (int i = 0; i < s_planeCount; i++) {
-    float d = planeDistKm(i);
-    if (d > R) continue;
-    float b = s_planes[i].bear * PI / 180;
-    int rr = (int)(R_R * d / R);
-    int x = R_CX + (int)(sin(b) * rr);
-    int y = R_CY - (int)(cos(b) * rr);
-    if (mc < MAX_PLANES) { mapped[mc].i = i; mapped[mc].x = x; mapped[mc].y = y; mapped[mc].d = d; mc++; }
-  }
-  // sort by distance so nearest get labels and fixed slots
-  for (int a = 0; a < mc - 1; a++)
-    for (int b = a + 1; b < mc; b++)
-      if (mapped[b].d < mapped[a].d) { MP t = mapped[a]; mapped[a] = mapped[b]; mapped[b] = t; }
-
-  // markers first
-  for (int i = 0; i < mc; i++) {
-    int pi = mapped[i].i;
-    drawPlaneMarker(mapped[i].x, mapped[i].y, s_planes[pi].head,
-                    altColor(s_planes[pi].alt));
-  }
-
-  // labels: fixed non-overlapping vertical slots, side follows marker
+  int lc = s_mappedCnt < MAX_LABELS ? s_mappedCnt : MAX_LABELS;
   useFont(u8g2_font_helvB10_tr);
-  static const int SLOT_TOP[MAX_LABELS] = {26, 92, 158};
-  int lc = mc < MAX_LABELS ? mc : MAX_LABELS;
   for (int k = 0; k < lc; k++) {
-    int pi = mapped[k].i;
-    int mx = mapped[k].x, my = mapped[k].y;
+    int pi = s_mapped[k].i;
+    int mx = s_mapped[k].x, my = s_mapped[k].y;
     bool onRight = mx >= R_CX;
-    int lx = onRight ? 132 : 10;
-    int top = SLOT_TOP[k];
-    // leader line
-    gfx->drawLine(mx, my, onRight ? lx : lx + 92, top + 10, C_GRAY);
+    int lx = onRight ? mx + 8 : mx - 62;
+    int ly = my - 6;
+    if (ly < 30) ly = 30;
+    if (ly > 196) ly = 196;
     char dm[16];
     snprintf(dm, sizeof(dm), "%.0fm", s_planes[pi].distM);
-    txtAt(s_planes[pi].call, lx, top, C_WHITE);
-    if (s_planes[pi].typ[0]) txtAt(s_planes[pi].typ, lx, top + 14, C_YELLOW);
-    txtAt(dm, lx, top + 28, C_CYAN);
+    txtAt(s_planes[pi].call, lx, ly, C_WHITE);
+    if (s_planes[pi].typ[0]) txtAt(s_planes[pi].typ, lx, ly + 12, C_YELLOW);
+    txtAt(dm, lx, ly + 24, C_CYAN);
   }
 
-  // header
-  useFont(u8g2_font_helvB10_tr);
+  // header: Chinese location name + range/count
+  useFont(u8g2_font_unifont_t_chinese4);
+  txtC(s_city, 12, C_YELLOW);
+  useFont(u8g2_font_helvB08_tr);
   char hdr[40];
-  snprintf(hdr, sizeof(hdr), "RANGE %.0fkm N%d", R, s_planeCount);
-  txtC(hdr, 8, C_GREEN);
+  snprintf(hdr, sizeof(hdr), "%.0fkm N%d", R, s_planeCount);
+  txtC(hdr, 27, C_GREEN);
+}
+
+static void drawWedge(float sweep, bool erase) {
+  // Solid gradient fan: one filled pie slice per gradient step.
+  for (int k = 0; k < WEDGE_N; k++) {
+    float a1 = (sweep - k * WEDGE_STEP) * PI / 180;
+    float a2 = (sweep - (k + 1) * WEDGE_STEP) * PI / 180;
+    int x1 = R_CX + (int)(sin(a1) * (R_R - 6));
+    int y1 = R_CY - (int)(cos(a1) * (R_R - 6));
+    int x2 = R_CX + (int)(sin(a2) * (R_R - 6));
+    int y2 = R_CY - (int)(cos(a2) * (R_R - 6));
+    gfx->fillTriangle(R_CX, R_CY, x1, y1, x2, y2,
+                      erase ? C_BLACK : WEDGE_COL[k]);
+  }
+  gfx->fillCircle(R_CX, R_CY, 3, erase ? C_BLACK : C_WHITE);
+}
+
+static void drawRadarBase() {
+  gfx->fillScreen(C_BLACK);
+  drawRings();
+  computeMapped();
+  drawMarkers();
+  drawLabels();
+  drawWedge(s_sweep, false);
+}
+
+// Full redraw (page entry / after plane fetch).
+static void drawPlanes(float sweep) {
+  (void)sweep;
+  drawRadarBase();
 }
 
 // ---------------- clock ----------------
@@ -647,6 +703,40 @@ static void drawHands(int hour, int minute, int second) {
   gfx->drawLine(R_CX, R_CY, mx, my, C_WHITE);
   int sx = R_CX + (int)(sin(aS) * 84), sy = R_CY - (int)(cos(aS) * 84);
   gfx->drawLine(R_CX, R_CY, sx, sy, C_RED);
+}
+
+static void drawClockCenter() {
+  // big digital time
+  useFont(u8g2_font_logisoso24_tn);
+  char dig[8];
+  snprintf(dig, sizeof(dig), "%02d:%02d", s_tm.tm_hour, s_tm.tm_min);
+  txtC(dig, 66, C_YELLOW);
+
+  // date + weekday
+  static const char *WD[7] = {"周日", "周一", "周二", "周三",
+                              "周四", "周五", "周六"};
+  useFont(u8g2_font_unifont_t_chinese4);
+  char date[40];
+  snprintf(date, sizeof(date), "%04d-%02d-%02d %s",
+           s_tm.tm_year + 1900, s_tm.tm_mon + 1, s_tm.tm_mday, WD[s_tm.tm_wday]);
+  txtC(date, 98, C_WHITE);
+
+  // city (Chinese)
+  useFont(u8g2_font_unifont_t_chinese4);
+  txtC(s_city, 120, C_ORANGE);
+
+  // weather chinese
+  useFont(u8g2_font_unifont_t_chinese4);
+  if (s_metOk) txtC(wmoZh(s_code), 140, C_CYAN);
+
+  // bottom row
+  useFont(u8g2_font_helvB08_tr);
+  if (s_metOk) {
+    char b[48];
+    snprintf(b, sizeof(b), "%.0fC hum%.0f%% %s",
+             s_temp, s_hum, wmoZh(s_code));
+    txtC(b, 176, C_GREEN);
+  }
 }
 
 static void renderClock() {
@@ -675,37 +765,7 @@ static void renderClock() {
   }
 
   if (s_timeOk) {
-    // big digital time
-    useFont(u8g2_font_logisoso24_tn);
-    char dig[8];
-    snprintf(dig, sizeof(dig), "%02d:%02d", s_tm.tm_hour, s_tm.tm_min);
-    txtC(dig, 66, C_YELLOW);
-
-    // date + weekday
-    static const char *WD[7] = {"周日", "周一", "周二", "周三",
-                                "周四", "周五", "周六"};
-    useFont(u8g2_font_unifont_t_chinese4);
-    char date[40];
-    snprintf(date, sizeof(date), "%04d-%02d-%02d %s",
-             s_tm.tm_year + 1900, s_tm.tm_mon + 1, s_tm.tm_mday, WD[s_tm.tm_wday]);
-    txtC(date, 98, C_WHITE);
-
-    // city
-    useFont(u8g2_font_helvB10_tr);
-    txtC(s_city, 120, C_ORANGE);
-
-    // weather chinese
-    useFont(u8g2_font_unifont_t_chinese4);
-    if (s_metOk) txtC(wmoZh(s_code), 140, C_CYAN);
-
-    // bottom row
-    useFont(u8g2_font_helvB08_tr);
-    if (s_metOk) {
-      char b[48];
-      snprintf(b, sizeof(b), "%.0fC hum%.0f%% %s",
-               s_temp, s_hum, wmoZh(s_code));
-      txtC(b, 176, C_GREEN);
-    }
+    drawClockCenter();
     drawHands(s_tm.tm_hour, s_tm.tm_min, s_tm.tm_sec);
   } else {
     useFont(u8g2_font_helvB10_tr);
@@ -713,25 +773,32 @@ static void renderClock() {
   }
 }
 
+// Flicker-free per-second update: only the inner disc changes; the outer
+// dial (ring, ticks, numbers) stays untouched.
+static void updateClockHands() {
+  gfx->fillCircle(R_CX, R_CY, 85, C_BLACK);
+  drawClockCenter();
+  drawHands(s_tm.tm_hour, s_tm.tm_min, s_tm.tm_sec);
+}
+
 // ---------------- forecast ----------------
 static void renderForecast() {
   gfx->fillScreen(C_BLACK);
   gfx->drawCircle(R_CX, R_CY, R_R, C_DKGREEN);
 
-  // top: city left, icon center, temps right
-  useFont(u8g2_font_helvB10_tr);
-  txtAt(s_city.c_str(), 24, 36, C_YELLOW);
   if (s_metOk) {
-    drawWxIcon(120, 40, s_code, 10);
+    // current weather icon + description (center)
+    drawWxIcon(120, 34, s_code, 11);
     useFont(u8g2_font_unifont_t_chinese4);
-    txtC(wmoZh(s_code), 70, C_WHITE);
+    txtC(wmoZh(s_code), 62, C_WHITE);
+    // current temp (green) and today's high (yellow) on the right
     useFont(u8g2_font_helvB10_tr);
     char t[24];
     snprintf(t, sizeof(t), "%.0fC", s_temp);
-    txtAt(t, 176, 36, C_GREEN);
+    txtAt(t, 168, 30, C_GREEN);
     char hi[24];
     snprintf(hi, sizeof(hi), "/%.0fC", s_days[0].tmax);
-    txtAt(hi, 176, 52, C_YELLOW);
+    txtAt(hi, 168, 48, C_YELLOW);
   } else {
     useFont(u8g2_font_helvB10_tr);
     txtC("LOADING...", 50, C_GRAY);
@@ -763,17 +830,28 @@ static void renderForecast() {
 
   gfx->drawLine(30, 164, 210, 164, C_DKGREEN);
 
-  // bottom row
-  useFont(u8g2_font_helvB08_tr);
   if (s_metOk) {
-    char b[64];
+    // Chinese city name, bottom center
+    useFont(u8g2_font_unifont_t_chinese4);
+    txtC(s_city.c_str(), 176, C_YELLOW);
+
+    // three bottom items: current temp (left), rain (center), humidity (right)
     const char *rain = (s_code >= 51 && s_code <= 99) ? wmoZh(s_code) : "无雨";
-    snprintf(b, sizeof(b), "%.0fC %s %.0f%%", s_temp, rain, s_hum);
-    txtC(b, 178, C_WHITE);
+    char tb[16], hb[16];
+    snprintf(tb, sizeof(tb), "%.0fC", s_temp);
+    snprintf(hb, sizeof(hb), "%.0f%%", s_hum);
+    useFont(u8g2_font_helvB08_tr);
+    txtAt(tb, 52 - textW(tb) / 2, 196, C_WHITE);
+    useFont(u8g2_font_unifont_t_chinese4);
+    txtAt(rain, 120 - textW(rain) / 2, 196, C_WHITE);
+    useFont(u8g2_font_helvB08_tr);
+    txtAt(hb, 188 - textW(hb) / 2, 196, C_YELLOW);
+
     if (s_timeOk) {
       char u[24];
       snprintf(u, sizeof(u), "UPD %02d:%02d", s_tm.tm_hour, s_tm.tm_min);
-      txtC(u, 200, C_GRAY);
+      useFont(u8g2_font_helvB08_tr);
+      txtAt(u, 120 - textW(u) / 2, 216, C_GRAY);
     }
   }
 }
@@ -1001,7 +1079,7 @@ static void handleButton() {
   bool raw = digitalRead(PR_KEY) == HIGH; // HIGH = released, LOW = pressed
   unsigned long now = millis();
   if (raw != s_rawPrev) { s_lastChange = now; s_rawPrev = raw; }
-  if (now - s_lastChange >= DEBOUNCE_MS && raw != s_stable) {
+  if (now - s_lastChange >= DEBOUN_MS && raw != s_stable) {
     s_stable = raw;
     if (!raw) { // confirmed press
       s_pressTime = now;
@@ -1024,20 +1102,29 @@ static void handleButton() {
 
 // ---------------- ticks ----------------
 static void tickClock() {
-  if (s_timeOk && s_tm.tm_sec != s_lastSec) {
+  if (!s_timeOk) return;
+  // Refresh the system time every loop so the second hand/digits actually move.
+  getLocalTime(&s_tm, 100);
+  if (s_tm.tm_sec != s_lastSec) {
     s_lastSec = s_tm.tm_sec;
-    renderClock();
+    updateClockHands();
   }
 }
 static void tickPlanes(unsigned long now) {
-  if (now - s_sweepMs >= 80) {
+  if (now - s_sweepMs >= 100) {
     s_sweepMs = now;
-    s_sweep += 7;
+    // Erase the old wedge, restore static content, then draw the new wedge.
+    // No full-screen fill -> no flicker.
+    drawWedge(s_sweep, true);
+    drawRings();
+    drawMarkers();
+    drawLabels();
+    s_sweep += 6;
     if (s_sweep >= 360) s_sweep -= 360;
-    drawPlanes(s_sweep);
+    drawWedge(s_sweep, false);
   }
   if (now - s_planeMs >= 60000 || s_planeCount == 0) {
-    if (fetchPlanes()) drawPlanes(s_sweep);
+    if (fetchPlanes()) drawRadarBase();
   }
 }
 static void tickForecast(unsigned long now) {
