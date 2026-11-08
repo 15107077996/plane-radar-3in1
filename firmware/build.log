@@ -41,7 +41,7 @@ Collecting bitarray<4.0,>=3.0.0 (from bitstring~=4.3.1)
 Collecting pycparser (from cffi>=1.14->cryptography~=45.0.3)
   Using cached pycparser-3.12-py3-none-any.whl.metadata (9.7 kB)
 Downloading cryptography-45.0.7-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 67.9 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 104.0 MB/s  0:00:00
 Downloading ecdsa-0.19.2-py2.py3-none-any.whl (150 kB)
 Downloading bitstring-4.3.1-py3-none-any.whl (71 kB)
 Using cached reedsolo-1.7.0-py3-none-any.whl (32 kB)
@@ -126,24 +126,18 @@ Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_d_memory.c.o
 Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_d_setup.c.o
 Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_font.c.o
 Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_fonts.c.o
-src/main.cpp: In function 'void tickRain(long unsigned int)':
-src/main.cpp:1025:48: error: expected ')' before '{' token
-   if ((!s_rainOk && now - s_rainTryMs >= 30000) {
-      ~                                         ^~
-                                                )
-src/main.cpp:1029:1: error: expected primary-expression before '}' token
- }
- ^
-src/main.cpp: In function 'void setup()':
-src/main.cpp:1063:38: error: 'class Preferences' has no member named 'c_str'
-   WiFi.begin(s_ssid.c_str(), s_prefs.c_str());
-                                      ^~~~~
-src/main.cpp:1082:3: error: 'fetchOpenMMeteo' was not declared in this scope
-   fetchOpenMMeteo();
-   ^~~~~~~~~~~~~~~
-src/main.cpp:1082:3: note: suggested alternative: 'fetchOpenMeteo'
-   fetchOpenMMeteo();
-   ^~~~~~~~~~~~~~~
-   fetchOpenMeteo
+src/main.cpp: In function 'void drawPlanes(float)':
+src/main.cpp:553:20: error: expected ';' before numeric constant
+   for (int i = 0; i 3; i++) {
+                    ^~
+                    ;
+src/main.cpp:553:22: error: expected ')' before ';' token
+   for (int i = 0; i 3; i++) {
+       ~              ^
+                      )
+src/main.cpp:553:24: error: 'i' was not declared in this scope
+   for (int i = 0; i 3; i++) {
+                        ^
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_hvline.c.o
 *** [.pio/build/esp32c3/src/main.cpp.o] Error 1
-========================= [FAILED] Took 54.53 seconds =========================
+========================= [FAILED] Took 54.13 seconds =========================
