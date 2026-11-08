@@ -52,8 +52,11 @@ static void renderForecast() {
     useFont(u8g2_font_unifont_t_chinese4);
     txtC(s_city.c_str(), 176, C_YELLOW);
 
-    // three bottom items: current temp (left), rain (center), humidity (right)
-    const char *rain = (s_code >= 51 && s_code <= 99) ? wmoZh(s_code) : "无雨";
+    // three bottom items: current temp (left), rain now (center), humidity (right)
+    const char *rain = (s_prec >= 0.1f)
+                           ? "有雨"
+                           : ((s_code >= 51 && s_code <= 99) ? wmoZh(s_code)
+                                                             : "无雨");
     char tb[16], hb[16];
     snprintf(tb, sizeof(tb), "%.0fC", s_temp);
     snprintf(hb, sizeof(hb), "%.0f%%", s_hum);
@@ -72,4 +75,3 @@ static void renderForecast() {
     }
   }
 }
-
