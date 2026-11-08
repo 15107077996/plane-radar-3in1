@@ -1,6 +1,7 @@
 // PlaneRadar - single translation unit assembled from small include chunks.
 // Kept in one TU so all static globals are shared without extern declarations.
 #include "inc/inc01_defs.inc"
+#include "inc/inc01b_ver.inc"
 #include "inc/inc02_util.inc"
 #include "inc/inc03_meteo.inc"
 #include "inc/inc04_icon.inc"
