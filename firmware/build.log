@@ -41,7 +41,7 @@ Collecting bitarray<4.0,>=3.0.0 (from bitstring~=4.3.1)
 Collecting pycparser (from cffi>=1.14->cryptography~=45.0.3)
   Using cached pycparser-3.12-py3-none-any.whl.metadata (9.7 kB)
 Downloading cryptography-45.0.7-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 7.2 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 19.0 MB/s  0:00:00
 Downloading ecdsa-0.19.2-py2.py3-none-any.whl (150 kB)
 Downloading bitstring-4.3.1-py3-none-any.whl (71 kB)
 Using cached reedsolo-1.7.0-py3-none-any.whl (32 kB)
@@ -108,11 +108,36 @@ Merged 1 ELF section
 Successfully created esp32c3 image.
 Compiling .pio/build/esp32c3/liba33/Wire/Wire.cpp.o
 Compiling .pio/build/esp32c3/lib260/U8g2/U8g2lib.cpp.o
-src/main.cpp:9:10: fatal error: inc/inc07_clock.inc: No such file or directory
- #include "inc/inc07_clock.inc"
-          ^~~~~~~~~~~~~~~~~~~~~
-compilation terminated.
 Archiving .pio/build/esp32c3/lib30b/libSPI.a
-*** [.pio/build/esp32c3/src/main.cpp.o] Error 1
 Indexing .pio/build/esp32c3/lib30b/libSPI.a
-========================= [FAILED] Took 57.20 seconds =========================
+Compiling .pio/build/esp32c3/lib260/U8g2/U8x8lib.cpp.o
+Archiving .pio/build/esp32c3/liba33/libWire.a
+Indexing .pio/build/esp32c3/liba33/libWire.a
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/mui.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/mui_u8g2.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_arc.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_bitmap.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_box.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_buffer.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_button.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_circle.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_cleardisplay.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_d_memory.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_d_setup.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_font.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_fonts.c.o
+In file included from src/main.cpp:11:
+src/inc/inc09_rain.inc: In function 'void pngRow(PNGDRAW*)':
+src/inc/inc09_rain.inc:11:3: error: 'dy2' was not declared in this scope
+   dy2 = dy * dy;
+   ^~~
+src/inc/inc09_rain.inc:11:3: note: suggested alternative: 'dy'
+   dy2 = dy * dy;
+   ^~~
+   dy
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_hvline.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_input_value.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_intersection.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_kerning.c.o
+*** [.pio/build/esp32c3/src/main.cpp.o] Error 1
+========================= [FAILED] Took 58.60 seconds =========================
