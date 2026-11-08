@@ -182,6 +182,8 @@ static void drawRainHud() {
   txtC(st, 224, C_GREEN);
 }
 
+static size_t cachedSize(const char *p);
+
 // One animation frame = base tiles from flash, then that frame's rain tiles on
 // top. Redrawing the base is what erases the previous frame, so the echoes
 // actually travel instead of piling up.
@@ -228,6 +230,18 @@ static size_t cachedSize(const char *p) {
   return sz;
 }
 
+static bool allFramesPresent() {
+  if (!s_fsOk) return false;
+  for (int fr = 0; fr < s_frameN; fr++) {
+    for (int i = 0; i < s_tileN; i++) {
+      char p[16];
+      snprintf(p, sizeof(p), "/r%d_%d.png", fr, i);
+      if (cachedSize(p) < 100) return false;
+    }
+  }
+  return true;
+}
+
 // RainViewer publishes a new frame every 10 min, so a 6-min refresh usually
 // reuses exactly the same three images. Remembering the frame list in flash
 // turns that refresh into a pure redraw (~2s instead of ~10s over HTTP).
@@ -240,14 +254,7 @@ static bool framesCached() {
   String cur = "";
   for (int i = 0; i < s_frameN; i++) { cur += s_framePath[i]; cur += "|"; }
   if (old != cur) return false;
-  for (int fr = 0; fr < s_frameN; fr++) {
-    for (int i = 0; i < s_tileN; i++) {
-      char p[16];
-      snprintf(p, sizeof(p), "/r%d_%d.png", fr, i);
-      if (cachedSize(p) < 100) return false;
-    }
-  }
-  return true;
+  return allFramesPresent();
 }
 
 static void saveFrameSig() {
