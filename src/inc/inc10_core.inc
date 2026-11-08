@@ -118,7 +118,6 @@ void setup() {
   pinMode(PR_KEY, INPUT_PULLUP);
 
   s_bus = new Arduino_ESP32SPI(PR_DC, PR_CS, PR_SCLK, PR_MOSI);
-  gfx = new Arduino_GC9A01(ARduino_GC9A01);
   gfx = new Arduino_GC9A01(s_bus, PR_RST, 0, true);
   gfx->begin(PR_SPI_FREQ);
   gfx->setUTF8Print(true);
