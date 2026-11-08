@@ -97,14 +97,15 @@ static void tickPlanes(unsigned long now) {
 }
 static void tickForecast(unsigned long now) {
   if ((!s_metOk && now - s_metTryMs >= 30000) ||
-      (s_metOk && now - s_metMs >= 600000)) {
+      (s_metOk && now - s_metMs >= 360000)) {
     s_metTryMs = now;
     fetchOpenMeteo();
+    if (s_screen == SCR_FORECAST) renderForecast();
   }
 }
 static void tickRain(unsigned long now) {
   if ((!s_rainOk && now - s_rainTryMs >= 30000) ||
-      (s_rainOk && now - s_rainMs >= 600000)) {
+      (s_rainOk && now - s_rainMs >= 360000)) {
     s_rainTryMs = now;
     rainRefresh();
   }
