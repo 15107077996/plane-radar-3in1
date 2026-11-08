@@ -101,6 +101,27 @@ static void releasePngBuf() {
   s_pngLen = 0;
 }
 
+// ---------------- flash cache (SPIFFS) ----------------
+static bool fsLoad(const char *path) {
+  if (!s_fsOk) return false;
+  File f = SPIFFS.open(path, "r");
+  if (!f) return false;
+  size_t sz = (size_t)f.size();
+  if (!ensurePngBuf(sz)) { f.close(); return false; }
+  size_t rd = f.read(s_pngData, sz);
+  f.close();
+  s_pngLen = rd;
+  return rd == sz && sz > 64;
+}
+static bool fsSave(const char *path, size_t len) {
+  if (!s_fsOk || !s_pngData || len < 64) return false;
+  File f = SPIFFS.open(path, "w");
+  if (!f) return false;
+  size_t wr = f.write(s_pngData, len);
+  f.close();
+  return wr == len;
+}
+
 // ---------------- config portal ----------------
 static void saveCfg() {
   s_prefs.putInt("ver", CFG_VER);
@@ -110,40 +131,120 @@ static void saveCfg() {
   s_prefs.putFloat("lat", s_lat);
   s_prefs.putFloat("lon", s_lon);
   s_prefs.putString("city", s_city);
+  s_prefs.putInt("rsrc", s_rainSrc);
 }
 
 static void handleRoot() {
-  String html = "<doctype html><html><head><meta charset=utf-8>"
-                "<meta name=viewport content='width=device-width,initial-scale=1'>"
-                "<title>PlaneRadar Setup</title></head><body>"
-                "<h2>PlaneRadar WiFi</h2><form method=POST action=/save>"
-                "SSID:<br><input name=ssid length=32><br>"
-                "Password:<br><input name=pass length=32><br><br>"
-                "<button type=submit>Save</button></form></body></html>";
-  s_srv->send(200, "text/html", html);
+  char lat[16], lon[16];
+  snprintf(lat, sizeof(lat), "%.5f", s_lat);
+  snprintf(lon, sizeof(lon), "%.5f", s_lon);
+  String html = "<!doctype html><html><head><meta charset=utf-8>";
+  html += "<meta name=viewport content='width=device-width,initial-scale=1'>";
+  html += "<title>PlaneRadar</title><style>";
+  html += "body{font-family:sans-serif;margin:16px;background:#111;color:#ddd}";
+  html += "input,select{width:100%;padding:8px;margin:4px 0 12px;background:#222;";
+  html += "color:#ddd;border:1px solid #444}";
+  html += "button{padding:12px 20px;background:#2a2;color:#fff;border:0;border-radius:4px}";
+  html += "h2,h3{color:#ee0}</style></head><body>";
+  html += "<h2>PlaneRadar " FW_VER "</h2><form method=POST action=/save>";
+  html += "WiFi name<br><input name=ssid value='" + s_ssid + "'>";
+  html += "WiFi password<br><input name=pass value='" + s_pass + "'>";
+  html += "City name<br><input name=city value='" + s_city + "'>";
+  html += "Latitude<br><input name=lat value='" + String(lat) + "'>";
+  html += "Longitude<br><input name=lon value='" + String(lon) + "'>";
+  html += "Fixed home (skip IP locate)<br><select name=manual>";
+  html += (s_manual ? "<option value=1 selected>on</option><option value=0>off</option>"
+                     : "<option value=1>on</option><option value=0 selected>off</option>");
+  html += "</select>Rain layer source<br><select name=rsrc>";
+  html += (s_rainSrc == 0
+               ? "<option value=0 selected>radar echo</option><option value=1>satellite IR</option>"
+               : "<option value=0>radar echo</option><option value=1 selected>satellite IR</option>");
+  html += "</select><button type=submit>Save and reboot</button></form>";
+  html += "<h3>OTA firmware update</h3>";
+  html += "<form method=POST action=/update enctype=multipart/form-data>";
+  html += "<input type=file name=update><button type=submit>Upload and flash</button></form>";
+  html += "<p>Upload firmware.bin (the app image), not a full merged dump.</p>";
+  html += "</body></html>";
+  s_srv->send(200, "text/html; charset=utf-8", html);
 }
+
 static void handleSave() {
   if (s_srv->hasArg("ssid")) s_ssid = s_srv->arg("ssid");
   if (s_srv->hasArg("pass")) s_pass = s_srv->arg("pass");
+  if (s_srv->hasArg("city")) {
+    String c = s_srv->arg("city");
+    c.trim();
+    if (c.length()) s_city = c;
+  }
+  if (s_srv->hasArg("lat")) s_lat = (float)atof(s_srv->arg("lat").c_str());
+  if (s_srv->hasArg("lon")) s_lon = (float)atof(s_srv->arg("lon").c_str());
+  if (s_srv->hasArg("manual")) s_manual = s_srv->arg("manual").toInt() != 0;
+  if (s_srv->hasArg("rsrc")) s_rainSrc = s_srv->arg("rsrc").toInt();
   saveCfg();
-  s_srv->send(200, "text/plain", "Saved, restarting...");
+  Serial.printf("[cfg] saved ssid=%s city=%s lat=%.4f lon=%.4f manual=%d rsrc=%d\n",
+                s_ssid.c_str(), s_city.c_str(), s_lat, s_lon, (int)s_manual,
+                s_rainSrc);
+  s_srv->send(200, "text/plain; charset=utf-8", "Saved, rebooting...");
   delay(800);
   ESP.restart();
+}
+
+// ---------------- OTA over HTTP ----------------
+// Update writes straight into the inactive app slot, so the 1.3MB image never
+// has to sit in RAM. Verified by the bootloader (elf-sha256) on next boot.
+static void handleUpdateUpload() {
+  HTTPUpload &up = s_srv->upload();
+  if (up.status == UPLOAD_FILE_START) {
+    Serial.printf("[ota] start %s\n", up.filename.c_str());
+    if (!Update.begin(UPDATE_SIZE_UNKNOWN))
+      Serial.printf("[ota] begin fail err=%u\n", Update.getError());
+  } else if (up.status == UPLOAD_FILE_WRITE) {
+    size_t wr = Update.write(up.buf, up.currentSize);
+    if (wr != up.currentSize)
+      Serial.printf("[ota] write short %u of %u\n", (unsigned)wr,
+                    (unsigned)up.currentSize);
+  } else if (up.status == UPLOAD_FILE_END) {
+    if (Update.end(true))
+      Serial.printf("[ota] end ok %u bytes\n", (unsigned)up.totalSize);
+    else
+      Serial.printf("[ota] end fail err=%u\n", Update.getError());
+  }
+}
+static void handleUpdateDone() {
+  bool ok = !Update.hasError();
+  s_srv->send(200, "text/plain; charset=utf-8",
+              ok ? "Update OK, rebooting" : "Update FAILED");
+  if (ok) {
+    delay(600);
+    ESP.restart();
+  }
+}
+
+static void startWeb() {
+  if (s_srv) return;
+  s_srv = new WebServer(8);
+  s_srv->on("/", HTTP_GET, handleRoot);
+  s_srv->on("/save", HTTP_POST, handleSave);
+  s_srv->on("/update", HTTP_POST, handleUpdateDone, handleUpdateUpload);
+  s_srv->begin();
+  Serial.println("[web] ready");
+}
+static void webLoop() {
+  if (s_srv) s_srv->handleClient();
 }
 
 static void startPortal() {
   WiFi.mode(WIFI_AP);
   WiFi.softAP("PlaneRadar-Setup");
-  s_srv = new WebServer(8);
-  s_srv->on("/", handleRoot);
-  s_srv->on("/save", handleSave);
-  s_srv->begin();
+  startWeb();
   Serial.println("AP PlaneRadar-Setup up, http://192.168.4.1");
   useFont(u8g2_font_helvB10_tr);
   gfx->fillScreen(C_BLACK);
-  txtC("SETUP WIFI", 100, C_YELLOW);
-  txtC("PlaneRadar-Setup", 122, C_WHITE);
-  txtC("192.168.4.1", 144, C_CYAN);
+  txtC("SETUP WIFI", 88, C_YELLOW);
+  txtC("PlaneRadar-Setup", 110, C_WHITE);
+  txtC("192.168.4.1", 132, C_CYAN);
+  useFont(u8g2_font_unifont_t_chinese4);
+  txtC("手机连它再打开网页", 154, C_GRAY);
   while (true) {
     s_srv->handleClient();
     delay(10);
@@ -225,4 +326,3 @@ static void syncTime() {
   if (s_timeOk) Serial.printf("[ntp] ok %04d-%02d-%02d\n",
                               s_tm.tm_year + 1900, s_tm.tm_mon + 1, s_tm.tm_mday);
 }
-
