@@ -59,7 +59,8 @@ static void handleButton() {
   if (!s_stable && !s_longFired && now - s_pressTime >= HOLD_MS) {
     s_longFired = true;
     s_suppressRelease = true;
-    s_rangeIdx = (s_rangeIdx + 1) % 6;
+    s_rangeAuto = false; // manual range choice beats the boot auto-fit
+    s_rangeIdx = (s_rangeIdx + 1) % RANGE_N;
     Serial.printf("[key] long range -> %.0fkm\n", rangeKm());
     enterPage(SCR_PLANES);
   }
@@ -88,6 +89,7 @@ static void tickPlanes(unsigned long now) {
     s_sweep += 6;
     if (s_sweep >= 360) s_sweep -= 360;
     drawWedge(s_sweep, false);
+    drawCardinals(); // repaint the compass letters the sweep just covered
   }
   if (now - s_planeMs >= 60000 || s_planeCount == 0) {
     if (fetchPlanes()) drawRadarBase();
