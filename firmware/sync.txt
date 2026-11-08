@@ -1,3 +1,0 @@
-== sync Sun Nov  8 10:31:58 UTC 2026
-marker no
-#define FW_VER "1.3.1-c3"
