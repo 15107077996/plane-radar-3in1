@@ -55,12 +55,12 @@
 #define C_DKBLUE 0x0210
 
 // ---------------- version ----------------
-#define FW_VER "1.2.0-c3"
+#define FW_VER "1.2.1-c3"
 #define CFG_VER 105
 #define WX_ZOOM 7
 #define FETCH_NM 250.0
 #define MAX_PLANES 40
-#define MAX_LABELS 6
+#define MAX_LABELS 3
 #define PNG_BUF_CAP 73728
 
 // ---------------- screens ----------------
@@ -144,6 +144,7 @@ static void renderForecast();
 static bool rainRefresh();
 static void enterPage(int page);
 static void handleButton();
+static void buttonResync();
 static bool fetchOpenMeteo();
 static void drawWxIcon(int cx, int cy, int code, int s);
 static const char *wmoZh(int code);
@@ -213,6 +214,22 @@ static void lonLatToTile(double lat, double lon, int z, int &tx, int &ty,
   py = my - ty * 256.0;
 }
 
+// ---------------- PNG buffer lifecycle ----------------
+// The 73KB buffer is only held while downloading/decoding rain tiles.
+// It is released before any TLS (plane) request so the handshake has heap.
+static bool ensurePngBuf() {
+  if (!s_pngData) s_pngData = (uint8_t *)malloc(PNG_BUF_CAP);
+  if (!s_pngData) Serial.println("[mem] png alloc fail");
+  return s_pngData != nullptr;
+}
+static void releasePngBuf() {
+  if (s_pngData) {
+    free(s_pngData);
+    s_pngData = nullptr;
+  }
+  s_pngLen = 0;
+}
+
 // ---------------- config portal ----------------
 static void saveCfg() {
   s_prefs.putInt("ver", CFG_VER);
@@ -245,16 +262,16 @@ static void handleSave() {
 static void startPortal() {
   WiFi.mode(WIFI_AP);
   WiFi.softAP("PlaneRadar-Setup");
-  s_srv = new WebServer(80);
+  s_srv = new WebServer(8);
   s_srv->on("/", handleRoot);
   s_srv->on("/save", handleSave);
   s_srv->begin();
   Serial.println("AP PlaneRadar-Setup up, http://192.168.4.1");
-  useFont(u8g2_font_helvB08_tr);
+  useFont(u8g2_font_helvB10_tr);
   gfx->fillScreen(C_BLACK);
   txtC("SETUP WIFI", 100, C_YELLOW);
-  txtC("PlaneRadar-Setup", 120, C_WHITE);
-  txtC("192.168.4.1", 140, C_CYAN);
+  txtC("PlaneRadar-Setup", 122, C_WHITE);
+  txtC("192.168.4.1", 144, C_CYAN);
   while (true) {
     s_srv->handleClient();
     delay(10);
@@ -468,6 +485,9 @@ static void drawPlaneMarker(int x, int y, int head, uint16_t col) {
 }
 
 static bool fetchPlanes() {
+  // Never start TLS while the big PNG buffer is held.
+  releasePngBuf();
+
   char url[160];
   snprintf(url, sizeof(url),
            "https://opendata.adsb.fi/api/v3/lat/%.4f/lon/%.4f/dist/%.1f",
@@ -475,6 +495,8 @@ static bool fetchPlanes() {
   WiFiClientSecure tls;
   tls.setInsecure();
   HTTPClient http;
+  http.setConnectTimeout(8000);
+  http.setTimeout(10000);
   http.begin(tls, url);
   int code = http.GET();
   bool ok = false;
@@ -534,7 +556,7 @@ static void drawPlanes(float sweep) {
   }
   // green crosshair
   gfx->drawLine(R_CX, R_CY - R_R, R_CX, R_CY + R_R, C_DKGREEN);
-  gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, R_CY, C_DKGREEN);
+  gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, C_DKGREEN);
 
   // range labels on right
   useFont(u8g2_font_helvB08_tr);
@@ -562,10 +584,8 @@ static void drawPlanes(float sweep) {
   gfx->drawLine(R_CX, R_CY, sx, sy, C_GREEN);
   gfx->fillCircle(R_CX, R_CY, 3, C_WHITE);
 
-  // map planes, pick nearest MAX_LABELS for labels
-  int labelIdx[MAX_LABELS];
-  int lc = 0;
-  struct MP { int i; int x; int y; float d; } ;
+  // map in-range planes
+  struct MP { int i; int x; int y; float d; };
   MP mapped[MAX_PLANES];
   int mc = 0;
   for (int i = 0; i < s_planeCount; i++) {
@@ -577,52 +597,42 @@ static void drawPlanes(float sweep) {
     int y = R_CY - (int)(cos(b) * rr);
     if (mc < MAX_PLANES) { mapped[mc].i = i; mapped[mc].x = x; mapped[mc].y = y; mapped[mc].d = d; mc++; }
   }
-  // sort mapped by distance for label priority
+  // sort by distance so nearest get labels and fixed slots
   for (int a = 0; a < mc - 1; a++)
     for (int b = a + 1; b < mc; b++)
       if (mapped[b].d < mapped[a].d) { MP t = mapped[a]; mapped[a] = mapped[b]; mapped[b] = t; }
-  for (int i = 0; i < mc && lc < MAX_LABELS; i++) labelIdx[lc++] = mapped[i].i;
 
-  // markers
+  // markers first
   for (int i = 0; i < mc; i++) {
     int pi = mapped[i].i;
     drawPlaneMarker(mapped[i].x, mapped[i].y, s_planes[pi].head,
                     altColor(s_planes[pi].alt));
   }
 
-  // labels
-  useFont(u8g2_font_helvB08_tr);
+  // labels: fixed non-overlapping vertical slots, side follows marker
+  useFont(u8g2_font_helvB10_tr);
+  static const int SLOT_TOP[MAX_LABELS] = {26, 92, 158};
+  int lc = mc < MAX_LABELS ? mc : MAX_LABELS;
   for (int k = 0; k < lc; k++) {
-    int pi = labelIdx[k];
-    int x = 0, y = 0;
-    for (int i = 0; i < mc; i++) if (mapped[i].i == pi) { x = mapped[i].x; y = mapped[i].y; }
-    int wCall = textW(s_planes[pi].call);
-    int wTyp = s_planes[pi].typ[0] ? textW(s_planes[pi].typ) : 0;
+    int pi = mapped[k].i;
+    int mx = mapped[k].x, my = mapped[k].y;
+    bool onRight = mx >= R_CX;
+    int lx = onRight ? 132 : 10;
+    int top = SLOT_TOP[k];
+    // leader line
+    gfx->drawLine(mx, my, onRight ? lx : lx + 92, top + 10, C_GRAY);
     char dm[16];
     snprintf(dm, sizeof(dm), "%.0fm", s_planes[pi].distM);
-    int wDm = textW(dm);
-    int lw = wCall;
-    if (wTyp > lw) lw = wTyp;
-    if (wDm > lw) lw = wDm;
-    int lx;
-    if (x > 145) lx = x - 8 - lw;
-    else lx = x + 8;
-    if (lx < 4) lx = 4;
-    if (lx + lw > 236) lx = 236 - lw;
-    int top = y - 14;
-    if (top < 10) top = 10;
-    if (top > 196) top = 196;
-    gfx->drawLine(x, y, lx, top + 12, C_GRAY);
     txtAt(s_planes[pi].call, lx, top, C_WHITE);
-    if (s_planes[pi].typ[0]) txtAt(s_planes[pi].typ, lx, top + 10, C_YELLOW);
-    txtAt(dm, lx, top + 20, C_CYAN);
+    if (s_planes[pi].typ[0]) txtAt(s_planes[pi].typ, lx, top + 14, C_YELLOW);
+    txtAt(dm, lx, top + 28, C_CYAN);
   }
 
   // header
-  useFont(u8g2_font_helvB08_tr);
+  useFont(u8g2_font_helvB10_tr);
   char hdr[40];
-  snprintf(hdr, sizeof(hdr), "RANGE %.0fkm  N%d", R, s_planeCount);
-  txtC(hdr, 16, C_GREEN);
+  snprintf(hdr, sizeof(hdr), "RANGE %.0fkm N%d", R, s_planeCount);
+  txtC(hdr, 8, C_GREEN);
 }
 
 // ---------------- clock ----------------
@@ -631,11 +641,11 @@ static void drawHands(int hour, int minute, int second) {
   float aH = hh * 30 * PI / 180;
   float aM = minute * 6 * PI / 180;
   float aS = second * 6 * PI / 180;
-  int hx = R_CX + (int)(sin(aH) * 48), hy = R_CY - (int)(cos(aH) * 48);
-  int mx = R_CX + (int)(sin(aM) * 78), my = R_CY - (int)(cos(aM) * 78);
+  int hx = R_CX + (int)(sin(aH) * 46), hy = R_CY - (int)(cos(aH) * 46);
+  int mx = R_CX + (int)(sin(aM) * 70), my = R_CY - (int)(cos(aM) * 70);
   gfx->drawLine(R_CX, R_CY, hx, hy, C_WHITE);
   gfx->drawLine(R_CX, R_CY, mx, my, C_WHITE);
-  int sx = R_CX + (int)(sin(aS) * 86), sy = R_CY - (int)(cos(aS) * 86);
+  int sx = R_CX + (int)(sin(aS) * 84), sy = R_CY - (int)(cos(aS) * 84);
   gfx->drawLine(R_CX, R_CY, sx, sy, C_RED);
 }
 
@@ -643,6 +653,7 @@ static void renderClock() {
   gfx->fillScreen(C_BLACK);
   gfx->drawCircle(R_CX, R_CY, R_R, C_DKGREEN);
 
+  // ticks + 12 numbers
   useFont(u8g2_font_helvB08_tr);
   for (int i = 0; i < 60; i++) {
     float a = i * 6 * PI / 180;
@@ -664,35 +675,40 @@ static void renderClock() {
   }
 
   if (s_timeOk) {
+    // big digital time
     useFont(u8g2_font_logisoso24_tn);
     char dig[8];
     snprintf(dig, sizeof(dig), "%02d:%02d", s_tm.tm_hour, s_tm.tm_min);
-    txtC(dig, 58, C_YELLOW);
+    txtC(dig, 66, C_YELLOW);
 
+    // date + weekday
     static const char *WD[7] = {"周日", "周一", "周二", "周三",
                                 "周四", "周五", "周六"};
     useFont(u8g2_font_unifont_t_chinese4);
     char date[40];
     snprintf(date, sizeof(date), "%04d-%02d-%02d %s",
              s_tm.tm_year + 1900, s_tm.tm_mon + 1, s_tm.tm_mday, WD[s_tm.tm_wday]);
-    txtC(date, 92, C_WHITE);
+    txtC(date, 98, C_WHITE);
 
+    // city
     useFont(u8g2_font_helvB10_tr);
-    txtC(s_city, 116, C_ORANGE);
+    txtC(s_city, 120, C_ORANGE);
 
+    // weather chinese
     useFont(u8g2_font_unifont_t_chinese4);
-    if (s_metOk) txtC(wmoZh(s_code), 138, C_CYAN);
+    if (s_metOk) txtC(wmoZh(s_code), 140, C_CYAN);
 
+    // bottom row
     useFont(u8g2_font_helvB08_tr);
     if (s_metOk) {
       char b[48];
-      snprintf(b, sizeof(b), "%.0fC  %s  hum%.0f%%",
-               s_temp, wmoZh(s_code), s_hum);
-      txtC(b, 172, C_GREEN);
+      snprintf(b, sizeof(b), "%.0fC hum%.0f%% %s",
+               s_temp, s_hum, wmoZh(s_code));
+      txtC(b, 176, C_GREEN);
     }
     drawHands(s_tm.tm_hour, s_tm.tm_min, s_tm.tm_sec);
   } else {
-    useFont(u8g2_font_helvB08_tr);
+    useFont(u8g2_font_helvB10_tr);
     txtC("TIME SYNC...", 120, C_YELLOW);
   }
 }
@@ -702,54 +718,57 @@ static void renderForecast() {
   gfx->fillScreen(C_BLACK);
   gfx->drawCircle(R_CX, R_CY, R_R, C_DKGREEN);
 
+  // top: city left, icon center, temps right
   useFont(u8g2_font_helvB10_tr);
-  txtAt(s_city.c_str(), 28, 34, C_YELLOW);
+  txtAt(s_city.c_str(), 24, 36, C_YELLOW);
   if (s_metOk) {
     drawWxIcon(120, 40, s_code, 10);
     useFont(u8g2_font_unifont_t_chinese4);
-    txtC(wmoZh(s_code), 69, C_WHITE);
+    txtC(wmoZh(s_code), 70, C_WHITE);
     useFont(u8g2_font_helvB10_tr);
     char t[24];
     snprintf(t, sizeof(t), "%.0fC", s_temp);
-    txtAt(t, 178, 34, C_GREEN);
+    txtAt(t, 176, 36, C_GREEN);
     char hi[24];
     snprintf(hi, sizeof(hi), "/%.0fC", s_days[0].tmax);
-    txtAt(hi, 178, 50, C_YELLOW);
+    txtAt(hi, 176, 52, C_YELLOW);
   } else {
-    useFont(u8g2_font_helvB08_tr);
+    useFont(u8g2_font_helvB10_tr);
     txtC("LOADING...", 50, C_GRAY);
   }
 
-  gfx->drawLine(30, 76, 210, 76, C_DKGREEN);
+  gfx->drawLine(30, 78, 210, 78, C_DKGREEN);
 
+  // 3 columns
   static const char *DL[3] = {"明天", "后天", "大后天"};
   int colX[3] = {48, 120, 192};
   useFont(u8g2_font_unifont_t_chinese4);
   for (int i = 0; i < 3; i++) {
     int w = textW(DL[i]);
-    txtAt(DL[i], colX[i] - w / 2, 88, C_CYAN);
+    txtAt(DL[i], colX[i] - w / 2, 90, C_CYAN);
   }
   if (s_metOk) {
     for (int i = 0; i < 3; i++) {
-      drawWxIcon(colX[i], 108, s_days[i].code, 8);
+      drawWxIcon(colX[i], 110, s_days[i].code, 8);
       useFont(u8g2_font_helvB08_tr);
       char tt[24];
       snprintf(tt, sizeof(tt), "%.0f/%.0f", s_days[i].tmin, s_days[i].tmax);
       int w = textW(tt);
-      txtAt(tt, colX[i] - w / 2, 130, C_WHITE);
+      txtAt(tt, colX[i] - w / 2, 132, C_WHITE);
       useFont(u8g2_font_unifont_t_chinese4);
       int zw = textW(wmoZh(s_days[i].code));
-      txtAt(wmoZh(s_days[i].code), colX[i] - zw / 2, 148, C_GREEN);
+      txtAt(wmoZh(s_days[i].code), colX[i] - zw / 2, 150, C_GREEN);
     }
   }
 
-  gfx->drawLine(30, 162, 210, 162, C_DKGREEN);
+  gfx->drawLine(30, 164, 210, 164, C_DKGREEN);
 
+  // bottom row
   useFont(u8g2_font_helvB08_tr);
   if (s_metOk) {
     char b[64];
     const char *rain = (s_code >= 51 && s_code <= 99) ? wmoZh(s_code) : "无雨";
-    snprintf(b, sizeof(b), "%.0fC  %s  %.0f%%", s_temp, rain, s_hum);
+    snprintf(b, sizeof(b), "%.0fC %s %.0f%%", s_temp, rain, s_hum);
     txtC(b, 178, C_WHITE);
     if (s_timeOk) {
       char u[24];
@@ -794,7 +813,7 @@ static void pngRow(PNGDRAW *pDraw) {
                        ((px[i * 3 + 1] & 0xFC) << 3) | (px[i * 3 + 2] >> 3));
     } else if (iPixelType == PNG_PIXEL_INDEXED) {
       uint8_t idx = px[i];
-      uint8_t a = pDraw->pPalette[768 + idx];
+      uint8_t a = pDraw->pPalette[768 + idx]; // tRNS alpha, default 255
       if (idx == 0 || a < 30) trans = true;
       else {
         uint8_t r = pDraw->pPalette[idx * 3];
@@ -808,13 +827,15 @@ static void pngRow(PNGDRAW *pDraw) {
       col = (uint16_t)(((g8 & 0xF8) << 8) | ((g8 & 0xFC) << 3) | (g8 >> 3));
     }
     linebuf[i] = col;
-    if (s_pngMode == 0) opaque[i] = inCircle;
-    else opaque[i] = inCircle && !trans;
+    if (s_pngMode == 0) opaque[i] = inCircle;            // base: ignore alpha
+    else opaque[i] = inCircle && !trans;                // rain: skip transparent
   }
 
   if (s_pngMode == 0) {
+    // full-width single burst, out-of-circle black
     gfx->draw16bitRGBBitmap(s_tileDx, ty, linebuf, 256, 1);
   } else {
+    // contiguous opaque runs, never overwriting base on transparent pixels
     int i = 0;
     while (i < w) {
       if (!opaque[i]) { i++; continue; }
@@ -882,18 +903,20 @@ static bool downloadToBuf(const char *url) {
 static bool rainRefresh() {
   s_rainOk = false;
   s_rainPx = 0;
+  if (!ensurePngBuf()) { txtC("MEM FAIL", 120, C_RED); return false; }
+
   HTTPClient http;
   http.begin("http://api.rainviewer.com/public/weather-maps.json");
   int code = http.GET();
-  if (code != 200) { Serial.printf("[rain] meta http=%d\n", code); http.end(); return false; }
+  if (code != 200) { Serial.printf("[rain] meta http=%d\n", code); http.end(); releasePngBuf(); return false; }
   String meta = http.getString();
   http.end();
   JsonDocument doc;
-  if (deserializeJson(doc, meta)) { Serial.println("[rain] meta json fail"); return false; }
+  if (deserializeJson(doc, meta)) { Serial.println("[rain] meta json fail"); releasePngBuf(); return false; }
   JsonArray now = doc["radar"]["nowcast"];
-  if (now.isNull() || now.size() == 0) { Serial.println("[rain] no nowcast"); return false; }
+  if (now.isNull() || now.size() == 0) { Serial.println("[rain] no nowcast"); releasePngBuf(); return false; }
   s_rainPath = (const char *)now[0]["path"];
-  if (s_rainPath.length() == 0) { Serial.println("[rain] no path"); return false; }
+  if (s_rainPath.length() == 0) { Serial.println("[rain] no path"); releasePngBuf(); return false; }
 
   double fx, fy;
   lonLatToTile((double)s_lat, (double)s_lon, WX_ZOOM, s_tileX, s_tileY, fx, fy);
@@ -906,35 +929,39 @@ static bool rainRefresh() {
            "http://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1"
            "&style=8&x=%d&y=%d&z=%d", s_tileX, s_tileY, WX_ZOOM);
   gfx->fillScreen(C_BLACK);
-  if (!downloadToBuf(baseUrl)) { txtC("BASE ERR", 120, C_RED); return false; }
-  if (!decodePng(0)) { txtC("BASE DEC ERR", 120, C_RED); return false; }
-
-  // rain overlay
-  char rainUrl[240];
-  snprintf(rainUrl, sizeof(rainUrl),
-           "http://tilecache.rainviewer.com%s/256/%d/%d/%d/2/1_1.png",
-           s_rainPath.c_str(), WX_ZOOM, s_tileX, s_tileY);
-  if (!downloadToBuf(rainUrl)) {
-    useFont(u8g2_font_helvB08_tr);
-    txtC("RAIN ERR", 120, C_RED);
-    return false;
+  bool ok = false;
+  if (!downloadToBuf(baseUrl)) {
+    txtC("BASE ERR", 120, C_RED);
+  } else if (!decodePng(0)) {
+    txtC("BASE DEC ERR", 120, C_RED);
+  } else {
+    // rain overlay
+    char rainUrl[240];
+    snprintf(rainUrl, sizeof(rainUrl),
+             "http://tilecache.rainviewer.com%s/256/%d/%d/%d/2/1_1.png",
+             s_rainPath.c_str(), WX_ZOOM, s_tileX, s_tileY);
+    if (!downloadToBuf(rainUrl)) {
+      useFont(u8g2_font_helvB10_tr);
+      txtC("RAIN ERR", 120, C_RED);
+    } else if (!decodePng(1)) {
+      useFont(u8g2_font_helvB10_tr);
+      txtC("RAIN DEC ERR", 120, C_RED);
+    } else {
+      gfx->drawCircle(R_CX, R_CY, R_R, C_WHITE);
+      int cover = s_rainPx * 100 / 39408;
+      useFont(u8g2_font_helvB10_tr);
+      char st[32];
+      snprintf(st, sizeof(st), "OK R%d%%", cover);
+      txtC(st, 224, C_GREEN);
+      s_rainMs = millis();
+      s_rainOk = true;
+      ok = true;
+      Serial.printf("[rain] ok cover=%d%%\n", cover);
+    }
   }
-  if (!decodePng(1)) {
-    useFont(u8g2_font_helvB08_tr);
-    txtC("RAIN DEC ERR", 120, C_RED);
-    return false;
-  }
 
-  gfx->drawCircle(R_CX, R_CY, R_R, C_WHITE);
-  int cover = s_rainPx * 100 / 39408;
-  useFont(u8g2_font_helvB08_tr);
-  char st[32];
-  snprintf(st, sizeof(st), "OK R%d%%", cover);
-  txtC(st, 224, C_GREEN);
-  s_rainMs = millis();
-  s_rainOk = true;
-  Serial.printf("[rain] ok cover=%d%%\n", cover);
-  return true;
+  releasePngBuf();
+  return ok;
 }
 
 // ---------------- page entry ----------------
@@ -949,27 +976,37 @@ static void enterPage(int page) {
   } else if (page == SCR_RAIN) {
     rainRefresh();
   }
+  // Drop any press edge that accumulated while the (possibly blocking) page built.
+  buttonResync();
 }
 
 // ---------------- button ----------------
 #define DEBOUNCE_MS 20
 #define HOLD_MS 600
-static bool s_rawPrev = true;
-static bool s_stable = true;
+static bool s_rawPrev = true;        // last raw level (true = released)
+static bool s_stable = true;         // debounced level
 static unsigned long s_lastChange = 0;
 static unsigned long s_pressTime = 0;
 static bool s_longFired = false;
 
-static void handleButton() {
+static void buttonResync() {
   bool raw = digitalRead(PR_KEY) == HIGH;
+  s_rawPrev = raw;
+  s_stable = raw;
+  s_lastChange = millis();
+  s_longFired = false;
+}
+
+static void handleButton() {
+  bool raw = digitalRead(PR_KEY) == HIGH; // HIGH = released, LOW = pressed
   unsigned long now = millis();
   if (raw != s_rawPrev) { s_lastChange = now; s_rawPrev = raw; }
   if (now - s_lastChange >= DEBOUNCE_MS && raw != s_stable) {
     s_stable = raw;
-    if (!raw) {
+    if (!raw) { // confirmed press
       s_pressTime = now;
       s_longFired = false;
-    } else {
+    } else {    // confirmed release
       if (!s_longFired) {
         int next = (s_screen + 1) % 4;
         Serial.printf("[key] short -> page %d\n", next);
@@ -1018,6 +1055,7 @@ static void tickRain(unsigned long now) {
   }
 }
 
+// ---------------- setup ----------------
 void setup() {
   Serial.begin(115200);
   delay(200);
@@ -1032,9 +1070,7 @@ void setup() {
   gfx->setUTF8Print(true);
   gfx->fillScreen(C_BLACK);
 
-  s_pngData = (uint8_t *)malloc(PNG_BUF_CAP);
-  if (!s_pngData) Serial.println("[mem] png alloc fail");
-
+  // PNG buffer is no longer held permanently; it is allocated on demand.
   s_prefs.begin("radar", false);
   int ver = s_prefs.getInt("ver", 0);
   s_ssid = s_prefs.getString("ssid", "");
@@ -1051,7 +1087,7 @@ void setup() {
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(s_ssid.c_str(), s_pass.c_str());
-  useFont(u8g2_font_helvB08_tr);
+  useFont(u8g2_font_helvB10_tr);
   txtC("WIFI...", 110, C_YELLOW);
   int wtry = 0;
   while (WiFi.status() != WL_CONNECTED && wtry < 40) {
@@ -1074,8 +1110,10 @@ void setup() {
 
   s_screen = SCR_CLOCK;
   renderClock();
+  buttonResync();
 }
 
+// ---------------- loop ----------------
 void loop() {
   unsigned long now = millis();
   handleButton();
