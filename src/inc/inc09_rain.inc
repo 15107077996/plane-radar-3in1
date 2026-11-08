@@ -186,46 +186,60 @@ static bool rainRefresh() {
 
   double fx, fy;
   lonLatToTile((double)s_lat, (double)s_lon, WX_ZOOM, s_tileX, s_tileY, fx, fy);
-  s_tileDx = (int)round(R_CX - fx);
-  s_tileDy = (int)round(R_CY - fy);
+  // One 256x256 tile cannot fill a 224px dial: the home pixel sits off-centre
+  // inside its tile, so the dial spans 2..4 tiles. Draw every tile the dial
+  // touches, one at a time, reusing the same small buffer.
+  double gx = (double)s_tileX * 256.0 + fx;
+  double gy = (double)s_tileY * 256.0 + fy;
+  int txA = (int)floor((gx - R_R) / 256.0);
+  int txB = (int)floor((gx + R_R) / 256.0);
+  int tyA = (int)floor((gy - R_R) / 256.0);
+  int tyB = (int)floor((gy + R_R) / 256.0);
+  if (txA < 0) txA = 0;
+  if (tyA < 0) tyA = 0;
+  if (txB > 127) txB = 127;
+  if (tyB > 127) tyB = 127;
 
-  // base map (Gaode, opaque)
-  char baseUrl[200];
-  snprintf(baseUrl, sizeof(baseUrl),
-           "http://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1"
-           "&style=8&x=%d&y=%d&z=%d", s_tileX, s_tileY, WX_ZOOM);
   gfx->fillScreen(C_BLACK);
   bool ok = false;
-  if (!downloadToBuf(baseUrl)) {
-    useFont(u8g2_font_unifont_t_chinese4);
-    txtC("底图网络错误", 120, C_RED);
-  } else if (!decodePng(0)) {
-    useFont(u8g2_font_unifont_t_chinese4);
-    txtC("底图解码错误", 120, C_RED);
-  } else {
-    // rain overlay
-    char rainUrl[240];
-    snprintf(rainUrl, sizeof(rainUrl),
-             "http://tilecache.rainviewer.com%s/256/%d/%d/%d/2/1_1.png",
-             s_rainPath.c_str(), WX_ZOOM, s_tileX, s_tileY);
-    if (!downloadToBuf(rainUrl)) {
-      useFont(u8g2_font_unifont_t_chinese4);
-      txtC("雨层网络错误", 120, C_RED);
-    } else if (!decodePng(1)) {
-      useFont(u8g2_font_unifont_t_chinese4);
-      txtC("雨层解码错误", 120, C_RED);
-    } else {
-      gfx->drawCircle(R_CX, R_CY, R_R, C_WHITE);
-      int cover = s_rainPx * 100 / 39408;
-      useFont(u8g2_font_helvB10_tr);
-      char st[32];
-      snprintf(st, sizeof(st), "OK R%d%%", cover);
-      txtC(st, 224, C_GREEN);
-      s_rainMs = millis();
-      s_rainOk = true;
+  bool baseBad = false, rainBad = false;
+  char baseUrl[200];
+  char rainUrl[240];
+  int tcount = 0;
+  for (int ty = tyA; ty <= tyB; ty++) {
+    for (int tx = txA; tx <= txB; tx++) {
+      s_tileDx = (int)round(R_CX - (gx - (double)tx * 256.0));
+      s_tileDy = (int)round(R_CY - (gy - (double)ty * 256.0));
+      // base map (Gaode, opaque)
+      snprintf(baseUrl, sizeof(baseUrl),
+               "http://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1"
+               "&scale=1&style=8&x=%d&y=%d&z=%d", tx, ty, WX_ZOOM);
+      if (!downloadToBuf(baseUrl)) { baseBad = true; continue; }
+      if (!decodePng(0)) { baseBad = true; continue; }
+      tcount++;
+      // rain overlay for the same tile
+      snprintf(rainUrl, sizeof(rainUrl),
+               "http://tilecache.rainviewer.com%s/256/%d/%d/%d/2/1_1.png",
+               s_rainPath.c_str(), WX_ZOOM, tx, ty);
+      if (!downloadToBuf(rainUrl)) { rainBad = true; continue; }
+      if (!decodePng(1)) { rainBad = true; continue; }
       ok = true;
-      Serial.printf("[rain] ok cover=%d%% free=%u\n", cover, ESP.getFreeHeap());
     }
+  }
+  if (!ok) {
+    useFont(u8g2_font_unifont_t_chinese4);
+    txtC(baseBad ? "底图加载失败" : "雨层加载失败", 120, C_RED);
+  } else {
+    gfx->drawCircle(R_CX, R_CY, R_R, C_WHITE);
+    int cover = s_rainPx * 100 / 39408;
+    useFont(u8g2_font_helvB10_tr);
+    char st[32];
+    snprintf(st, sizeof(st), "OK R%d%%", cover);
+    txtC(st, 224, C_GREEN);
+    s_rainMs = millis();
+    s_rainOk = true;
+    Serial.printf("[rain] ok tiles=%d cover=%d%% free=%u\n", tcount, cover,
+                  ESP.getFreeHeap());
   }
 
   releasePngBuf();
