@@ -392,7 +392,7 @@ static void fillCloud(int cx, int cy, int s, uint16_t col) {
 
 static void drawWxIcon(int cx, int cy, int code, int s) {
   int kind = iconKind(code);
-  if (kind == IC_SUN || kind IC_PART) {
+  if (kind == IC_SUN || kind == IC_PART) {
     gfx->fillCircle(cx, cy, s, C_YELLOW);
     for (int a = 0; a < 360; a += 45) {
       float r = a * PI / 180;
