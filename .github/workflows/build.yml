@@ -16,32 +16,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Sync rain overlay from CDN
-        run: |
-          set +e
-          mkdir -p firmware
-          {
-            echo "== sync $(date -u)"
-            test -f .rain-sync && echo "marker yes" || echo "marker no"
-            if [ -f .rain-sync ]; then
-              curl -fSL -m 90 -o /tmp/i9 "https://aka.doubaocdn.com/s/VEu1PR3nnA" 2>&1
-              echo "curl9 rc=$? size=$(stat -c %s /tmp/i9 2>/dev/null)"
-              curl -fSL -m 90 -o /tmp/i1 "https://aka.doubaocdn.com/s/sY1uK00bP1" 2>&1
-              echo "curl1 rc=$? size=$(stat -c %s /tmp/i1 2>/dev/null)"
-              if [ -s /tmp/i9 ] && [ -s /tmp/i1 ]; then
-                cp /tmp/i9 src/inc/inc09_rain.inc
-                cp /tmp/i1 src/inc/inc01_defs.inc
-                sha256sum src/inc/inc09_rain.inc src/inc/inc01_defs.inc
-                rm -f .rain-sync
-                echo "sources replaced"
-              else
-                echo "download failed, sources untouched"
-              fi
-            fi
-            grep FW_VER src/inc/inc01_defs.inc
-          } > firmware/sync.txt 2>&1
-          cat firmware/sync.txt
-
       - name: Install PlatformIO
         run: |
           python3 -m pip install --upgrade pip
@@ -88,8 +62,8 @@ jobs:
           name: firmware-bin
           path: firmware/*
 
-      # .pio is now gitignored; keep the step loud so a broken push shows up as a
-      # failed step instead of a silent success.
+      # .pio is gitignored; keep this step loud so a broken push fails visibly
+      # instead of silently "succeeding".
       - name: Commit build output to repository
         if: always()
         run: |
