@@ -12,6 +12,74 @@ static void drawHands(int hour, int minute, int second) {
   gfx->drawLine(R_CX, R_CY, sx, sy, C_RED);
 }
 
+// ---------------- sunrise / sunset / moon ----------------
+// NOAA solar position (spreadsheet form). Local clock hours, no network needed.
+// Verified against Nankang 2026-11-08: sunrise 06:33, sunset 17:35.
+static float s_sunRise = -1.0f, s_sunSet = -1.0f;
+static char s_moonName[8] = "";
+static int s_moonAge = 0;
+static int s_astroDay = -1;
+
+static bool sunTimes(float lat, float lon, int yday, float &riseH, float &setH) {
+  float lngHour = lon / 15.0f;
+  for (int pass = 0; pass < 2; pass++) {
+    float T = (float)yday + ((pass == 0 ? 6.0f : 18.0f) - lngHour) / 24.0f;
+    float M = (0.9856f * T) - 3.289f;
+    float L = M + (1.916f * sin((float)deg2rad(M))) +
+              (0.020f * sin((float)deg2rad(2 * M))) + 282.634f;
+    L = fmodf(L, 360.0f);
+    if (L < 0) L += 360.0f;
+    float RA = (float)rad2deg(atan(0.91764 * tan(deg2rad(L))));
+    RA = fmodf(RA, 360.0f);
+    if (RA < 0) RA += 360.0f;
+    float Lq = floor(L / 90.0f) * 90.0f;
+    float RAq = floor(RA / 90.0f) * 90.0f;
+    RA = (RA + (Lq - RAq)) / 15.0f;
+    float decl = (float)rad2deg(asin(0.39771 * sin(deg2rad(L))));
+    float cosH = ((float)cos(deg2rad(90.833)) -
+                  sin(deg2rad(lat)) * sin(deg2rad(decl))) /
+                 (cos(deg2rad(lat)) * cos(deg2rad(decl)));
+    if (cosH > 1.0f || cosH < -1.0f) return false; // polar day / night
+    float H = (float)rad2deg(acos(cosH)) / 15.0f;
+    float T2 = RA + (pass == 0 ? -H : H) - (0.06571f * T) - 6.622f;
+    float local = fmodf(T2 - lngHour + 8.0f, 24.0f); // CST-8
+    if (local < 0) local += 24.0f;
+    if (pass == 0) riseH = local;
+    else setH = local;
+  }
+  return true;
+}
+
+static void ensureAstro() {
+  if (!s_timeOk) return;
+  int key = (s_tm.tm_year + 1900) * 400 + s_tm.tm_yday;
+  if (key == s_astroDay) return;
+  s_astroDay = key;
+  s_sunRise = -1.0f;
+  s_sunSet = -1.0f;
+  sunTimes(s_lat, s_lon, s_tm.tm_yday + 1, s_sunRise, s_sunSet);
+  // Moon phase: synodic month since the 2000-01-06 18:14 UTC new moon.
+  time_t nowUtc = time(nullptr);
+  double days = ((double)nowUtc - 947182440.0) / 86400.0;
+  double syn = 29.530588853;
+  double ph = fmod(days, syn);
+  if (ph < 0) ph += syn;
+  ph /= syn;
+  s_moonAge = (int)(ph * syn + 0.5);
+  const char *nm;
+  if (ph < 0.03 || ph >= 0.97) nm = "新月";
+  else if (ph < 0.22) nm = "娥眉月";
+  else if (ph < 0.28) nm = "上弦月";
+  else if (ph < 0.47) nm = "盈凸月";
+  else if (ph < 0.53) nm = "满月";
+  else if (ph < 0.72) nm = "亏凸月";
+  else if (ph < 0.78) nm = "下弦月";
+  else nm = "残月";
+  snprintf(s_moonName, sizeof(s_moonName), "%s", nm);
+  Serial.printf("[astro] rise %.2f set %.2f moon %s age %d\n", s_sunRise,
+                s_sunSet, s_moonName, s_moonAge);
+}
+
 static void drawClockCenter() {
   // big digital time
   useFont(u8g2_font_logisoso24_tn);
@@ -42,7 +110,25 @@ static void drawClockCenter() {
     char b[48];
     snprintf(b, sizeof(b), "%.0fC hum%.0f%% %s",
              s_temp, s_hum, wmoZh(s_code));
-    txtC(b, 176, C_GREEN);
+    txtC(b, 174, C_GREEN);
+  }
+
+  // sunrise / sunset (local computation, no network)
+  if (s_sunRise >= 0) {
+    char sr[40];
+    int rh = (int)s_sunRise, rm = (int)((s_sunRise - rh) * 60);
+    int sh = (int)s_sunSet, sm = (int)((s_sunSet - sh) * 60);
+    snprintf(sr, sizeof(sr), "日出%02d:%02d 日落%02d:%02d", rh, rm, sh, sm);
+    useFont(u8g2_font_unifont_t_chinese4);
+    txtC(sr, 190, C_CYAN);
+  }
+
+  // moon phase
+  if (s_moonName[0]) {
+    char mb[24];
+    snprintf(mb, sizeof(mb), "%s %d天", s_moonName, s_moonAge);
+    useFont(u8g2_font_unifont_t_chinese4);
+    txtC(mb, 210, C_GRAY);
   }
 }
 
@@ -72,6 +158,7 @@ static void renderClock() {
   }
 
   if (s_timeOk) {
+    ensureAstro();
     drawClockCenter();
     drawHands(s_tm.tm_hour, s_tm.tm_min, s_tm.tm_sec);
   } else {
@@ -87,4 +174,3 @@ static void updateClockHands() {
   drawClockCenter();
   drawHands(s_tm.tm_hour, s_tm.tm_min, s_tm.tm_sec);
 }
-
