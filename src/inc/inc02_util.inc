@@ -84,6 +84,7 @@ static void saveCfg() {
   s_prefs.putInt("ver", CFG_VER);
   s_prefs.putString("ssid", s_ssid);
   s_prefs.putString("pass", s_pass);
+  s_prefs.putBool("manual", s_manual);
   s_prefs.putFloat("lat", s_lat);
   s_prefs.putFloat("lon", s_lon);
   s_prefs.putString("city", s_city);
@@ -176,7 +177,7 @@ static void locateByIp() {
         // Prefer the proper county/city name from reverse geocoding;
         // fall back to ip-api city, then region, then keep current.
         String rn = reverseName(s_lat, s_lon);
-        if (rn.length()) s_city = rn;
+        if (rn.length()) s_city = String(rn);
         else if (ci && ci[0]) s_city = String(ci);
         else if (rg && rg[0]) s_city = String(rg);
         saveCfg();
@@ -202,3 +203,4 @@ static void syncTime() {
   if (s_timeOk) Serial.printf("[ntp] ok %04d-%02d-%02d\n",
                               s_tm.tm_year + 1900, s_tm.tm_mon + 1, s_tm.tm_mday);
 }
+
