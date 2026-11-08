@@ -41,7 +41,7 @@ Collecting bitarray<4.0,>=3.0.0 (from bitstring~=4.3.1)
 Collecting pycparser (from cffi>=1.14->cryptography~=45.0.3)
   Using cached pycparser-3.12-py3-none-any.whl.metadata (9.7 kB)
 Downloading cryptography-45.0.7-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 19.3 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 66.9 MB/s  0:00:00
 Downloading ecdsa-0.19.2-py2.py3-none-any.whl (150 kB)
 Downloading bitstring-4.3.1-py3-none-any.whl (71 kB)
 Using cached reedsolo-1.7.0-py3-none-any.whl (32 kB)
@@ -102,105 +102,18 @@ Compiling .pio/build/esp32c3/src/main.cpp.o
 Building .pio/build/esp32c3/bootloader.bin
 Generating partitions .pio/build/esp32c3/partitions.bin
 Compiling .pio/build/esp32c3/lib30b/SPI/SPI.cpp.o
+Compiling .pio/build/esp32c3/liba33/Wire/Wire.cpp.o
 esptool.py v4.9.0
 Creating esp32c3 image...
 Merged 1 ELF section
 Successfully created esp32c3 image.
-Compiling .pio/build/esp32c3/liba33/Wire/Wire.cpp.o
 Compiling .pio/build/esp32c3/lib260/U8g2/U8g2lib.cpp.o
-src/main.cpp:916:4: error: stray '\345' in program
-    少年宫
-    ^
-src/main.cpp:916:5: error: stray '\260' in program
-    少年宫
-     ^
-src/main.cpp:916:6: error: stray '\221' in program
-    少年宫
-      ^
-src/main.cpp:916:7: error: stray '\345' in program
-    少年宫
-       ^
-src/main.cpp:916:8: error: stray '\271' in program
-    少年宫
-        ^
-src/main.cpp:916:9: error: stray '\264' in program
-    少年宫
-         ^
-src/main.cpp:916:10: error: stray '\345' in program
-    少年宫
-          ^
-src/main.cpp:916:11: error: stray '\256' in program
-    少年宫
-           ^
-src/main.cpp:916:12: error: stray '\253' in program
-    少年宫
-            ^
 Archiving .pio/build/esp32c3/lib30b/libSPI.a
 Indexing .pio/build/esp32c3/lib30b/libSPI.a
+src/main.cpp:5:10: fatal error: inc/inc03_icon.inc: No such file or directory
+ #include "inc/inc03_icon.inc"
+          ^~~~~~~~~~~~~~~~~~~~
+compilation terminated.
 Compiling .pio/build/esp32c3/lib260/U8g2/U8x8lib.cpp.o
-Archiving .pio/build/esp32c3/liba33/libWire.a
-Indexing .pio/build/esp32c3/liba33/libWire.a
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/mui.c.o
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/mui_u8g2.c.o
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_arc.c.o
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_bitmap.c.o
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_box.c.o
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_buffer.c.o
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_button.c.o
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_circle.c.o
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_cleardisplay.c.o
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_d_memory.c.o
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_d_setup.c.o
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_font.c.o
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_fonts.c.o
-src/main.cpp: In function 'bool fetchPlanes()':
-src/main.cpp:562:5: error: 'SerialPrintf' was not declared in this scope
-     SerialPrintf("[planes] http %d\n", code);
-     ^~~~~~~~~~~~
-src/main.cpp:562:5: note: suggested alternative: 'Serial1'
-     SerialPrintf("[planes] http %d\n", code);
-     ^~~~~~~~~~~~
-     Serial1
-src/main.cpp: In function 'void drawHands(int, int, int)':
-src/main.cpp:743:17: error: expected primary-expression before 'int'
-   gfx->drawLine(int)(sin(aS) * 84), sy = R_CY - (int)(cos(aS) * 84);
-                 ^~~
-src/main.cpp:743:37: error: 'sy' was not declared in this scope
-   gfx->drawLine(int)(sin(aS) * 84), sy = R_CY - (int)(cos(aS) * 84);
-                                     ^~
-src/main.cpp:743:37: note: suggested alternative: 'my'
-   gfx->drawLine(int)(sin(aS) * 84), sy = R_CY - (int)(cos(aS) * 84);
-                                     ^~
-                                     my
-src/main.cpp:744:29: error: 'sx' was not declared in this scope
-   gfx->drawLine(R_CX, R_CY, sx, sy, C_RED);
-                             ^~
-src/main.cpp:744:29: note: suggested alternative: 'mx'
-   gfx->drawLine(R_CX, R_CY, sx, sy, C_RED);
-                             ^~
-                             mx
-src/main.cpp: In function 'void pngRow(PNGDRAW*)':
-src/main.cpp:929:30: error: 'PNG_PIXEL' was not declared in this scope
-     } else if (iPixelType == PNG_PIXEL) {
-                              ^~~~~~~~~
-src/main.cpp:929:30: note: suggested alternative: 'PNGFILE'
-     } else if (iPixelType == PNG_PIXEL) {
-                              ^~~~~~~~~
-                              PNGFILE
-src/main.cpp: In function 'void tickRain(long unsigned int)':
-src/main.cpp:1185:48: error: expected ')' before '{' token
-   if ((!s_rainOk && now - s_rainTryMs >= 30000) {
-      ~                                         ^~
-                                                )
-src/main.cpp:1189:1: error: expected primary-expression before '}' token
- }
- ^
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_hvline.c.o
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_input_value.c.o
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_intersection.c.o
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_kerning.c.o
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_line.c.o
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_ll_hvline.c.o
-Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_message.c.o
 *** [.pio/build/esp32c3/src/main.cpp.o] Error 1
-========================= [FAILED] Took 55.00 seconds =========================
+========================= [FAILED] Took 51.48 seconds =========================
