@@ -47,3 +47,4 @@ static bool fetchOpenMeteo() {
   http.end();
   return ok;
 }
+
