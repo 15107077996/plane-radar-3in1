@@ -88,44 +88,20 @@ jobs:
           name: firmware-bin
           path: firmware/*
 
-      # Keep the token out of the log: the diagnostic line is base64 encoded and
-      # surfaced as an annotation, which is readable without an authenticated log
-      # download.
+      # .pio is now gitignored; keep the step loud so a broken push shows up as a
+      # failed step instead of a silent success.
       - name: Commit build output to repository
         if: always()
         run: |
-          set +e
           mkdir -p firmware
-          cp build.log firmware/build.log 2>/dev/null
-          {
-            echo "sha=${GITHUB_SHA}"
-            echo "--- git check-ignore ---"
-            git check-ignore -v firmware/app.bin firmware/sync.txt build.log 2>&1
-            echo "--- git config ---"
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git config --get remote.origin.url | sed 's/x-access-token:[^@]*/x-access-token:***/'
-            echo "--- git add ---"
-            git add -A
-            echo "add rc=$?"
-            git add -f firmware/sync.txt src/inc/inc09_rain.inc src/inc/inc01_defs.inc
-            echo "force add rc=$?"
-            echo "--- status ---"
-            git status --short | head -20
-            echo "--- commit ---"
-            git commit -m "fw: build artifacts from $(echo $GITHUB_SHA | cut -c1-7)"
-            echo "commit rc=$?"
-            echo "--- pull ---"
-            git pull --rebase origin main
-            echo "pull rc=$?"
-            echo "--- push ---"
-            git push
-            echo "push rc=$?"
-            echo "--- head ---"
-            git rev-parse --short HEAD
-          } > /tmp/cdiag.txt 2>&1
-          cat /tmp/cdiag.txt
-          B64=$(base64 -w0 /tmp/cdiag.txt)
-          echo "COMMITDIAG=$(echo $B64 | cut -c1-6000)"
-          B64=$(base64 -w0 /tmp/cdiag.txt)
-          echo "::error::COMMITDIAG_START ${B64} COMMITDIAG_END"
+          cp build.log firmware/build.log 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git add -f firmware
+          echo "--- staged ---"
+          git status --short | head -20
+          git commit -m "fw: build artifacts from $(echo $GITHUB_SHA | cut -c1-7)" || echo "nothing to commit"
+          echo "--- push ---"
+          git push
+          echo "push rc=$?"

@@ -1,0 +1,3 @@
+# PlatformIO build tree must never be versioned
+.pio/
+build.log
