@@ -8,7 +8,7 @@ static void pngRow(PNGDRAW *pDraw) {
   int w = pDraw->iWidth;
   if (w > 256) w = 256;
   int dy = ty - R_CY;
-  dy2 = dy * dy;
+  int dy2 = dy * dy;
   uint16_t linebuf[256];
   bool opaque[256];
   for (int i = 0; i < 256; i++) { linebuf[i] = 0; opaque[i] = false; }
@@ -208,4 +208,3 @@ static bool rainRefresh() {
   releasePngBuf();
   return ok;
 }
-
