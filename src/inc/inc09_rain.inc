@@ -228,6 +228,36 @@ static size_t cachedSize(const char *p) {
   return sz;
 }
 
+// RainViewer publishes a new frame every 10 min, so a 6-min refresh usually
+// reuses exactly the same three images. Remembering the frame list in flash
+// turns that refresh into a pure redraw (~2s instead of ~10s over HTTP).
+static bool framesCached() {
+  if (!s_fsOk || s_frameN <= 0) return false;
+  File f = SPIFFS.open("/rpath.txt", "r");
+  if (!f) return false;
+  String old = f.readString();
+  f.close();
+  String cur = "";
+  for (int i = 0; i < s_frameN; i++) { cur += s_framePath[i]; cur += "|"; }
+  if (old != cur) return false;
+  for (int fr = 0; fr < s_frameN; fr++) {
+    for (int i = 0; i < s_tileN; i++) {
+      char p[16];
+      snprintf(p, sizeof(p), "/r%d_%d.png", fr, i);
+      if (cachedSize(p) < 100) return false;
+    }
+  }
+  return true;
+}
+
+static void saveFrameSig() {
+  if (!s_fsOk) return;
+  File f = SPIFFS.open("/rpath.txt", "w");
+  if (!f) return;
+  for (int i = 0; i < s_frameN; i++) { f.print(s_framePath[i]); f.print("|"); }
+  f.close();
+}
+
 static bool rainRefresh() {
   unsigned long t0 = millis();
   s_rainOk = false;
@@ -323,6 +353,26 @@ static bool rainRefresh() {
   // Without a mounted filesystem the frames cannot be cached, so fall back to
   // a single static overlay (old behaviour) instead of showing nothing.
   bool single = (!s_fsOk || s_frameN < 2);
+
+  // Everything already on flash and the frame list unchanged: just redraw.
+  if (!single && framesCached()) {
+    s_animReady = true;
+    s_animFrame = s_frameN - 1;
+    gfx->fillScreen(C_BLACK);
+    if (drawFrame(s_animFrame)) {
+      drawRainHud();
+      s_rainMs = millis();
+      s_animMs = millis();
+      s_rainOk = true;
+      s_rainPxMax = s_rainPx;
+      releasePngBuf();
+      s_rainCostMs = millis() - t0;
+      Serial.printf("[rain] reuse frames cover=%d%% cost=%lums\n",
+                    s_rainPxMax * 100 / 39408, s_rainCostMs);
+      return true;
+    }
+  }
+
   gfx->fillScreen(C_BLACK);
   bool baseOk = false, rainOk = false;
   for (int i = 0; i < s_tileN; i++) {
@@ -365,8 +415,10 @@ static bool rainRefresh() {
       rainOk = true;
     }
   } else {
-    // download every frame and cache it, then start the loop animation
-    for (int f = 0; f < s_frameN; f++) {
+    // Newest frame first and shown immediately, older frames filled in after:
+    // the map appears in ~3s instead of after every frame has been fetched.
+    for (int k = 0; k < s_frameN; k++) {
+      int f = s_frameN - 1 - k;
       bool any = false;
       for (int i = 0; i < s_tileN; i++) {
         s_tileDx = s_tiles[i].dx;
@@ -379,12 +431,21 @@ static bool rainRefresh() {
         any = true;
       }
       if (any) rainOk = true;
+      if (f == s_frameN - 1 && any) {
+        s_animReady = false;
+        s_animFrame = f;
+        drawFrame(f);
+        drawRainHud();
+      }
       char prog[24];
-      snprintf(prog, sizeof(prog), "云图 %d/%d", f + 1, s_frameN);
+      snprintf(prog, sizeof(prog), "云图 %d/%d", s_frameN - f, s_frameN);
       loadText(prog);
     }
     if (rainOk) {
-      s_animReady = true;
+      if (allFramesPresent()) {
+        s_animReady = true;
+        saveFrameSig();
+      }
       s_animFrame = s_frameN - 1;
       drawFrame(s_animFrame);
     }
