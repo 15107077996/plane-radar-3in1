@@ -64,18 +64,40 @@ static void lonLatToTile(double lat, double lon, int z, int &tx, int &ty,
 }
 
 // ---------------- PNG buffer lifecycle ----------------
-// The 73KB buffer is only held while downloading/decoding rain tiles.
-// It is released before any TLS (plane) request so the handshake has heap.
-static bool ensurePngBuf() {
-  if (!s_pngData) s_pngData = (uint8_t *)malloc(PNG_BUF_CAP);
-  if (!s_pngData) Serial.println("[mem] png alloc fail");
-  return s_pngData != nullptr;
+// The PNG buffer is only held while downloading/decoding rain tiles, and it is
+// sized to the exact tile Content-Length (~16KB base map, ~5KB rain layer)
+// instead of a fixed 72KB block that no longer fits after WiFi/TLS.
+// If a smaller allocation fails the size is halved down to PNG_BUF_MIN.
+static bool ensurePngBuf(size_t need) {
+  if (need < PNG_BUF_MIN) need = PNG_BUF_MIN;
+  if (need > PNG_BUF_CAP) need = PNG_BUF_CAP;
+  if (s_pngData && s_pngCap >= need) return true;
+  if (s_pngData) {
+    free(s_pngData);
+    s_pngData = nullptr;
+    s_pngCap = 0;
+  }
+  size_t cap = need;
+  while (cap >= PNG_BUF_MIN) {
+    s_pngData = (uint8_t *)malloc(cap);
+    if (s_pngData) {
+      s_pngCap = cap;
+      Serial.printf("[mem] png buf %u free=%u maxblk=%u\n", (unsigned)cap,
+                    ESP.getFreeHeap(), ESP.getMaxAllocHeap());
+      return true;
+    }
+    cap /= 2;
+  }
+  Serial.printf("[mem] png alloc fail need=%u free=%u maxblk=%u\n",
+                (unsigned)need, ESP.getFreeHeap(), ESP.getMaxAllocHeap());
+  return false;
 }
 static void releasePngBuf() {
   if (s_pngData) {
     free(s_pngData);
     s_pngData = nullptr;
   }
+  s_pngCap = 0;
   s_pngLen = 0;
 }
 
