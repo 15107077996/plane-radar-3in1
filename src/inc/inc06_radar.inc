@@ -33,7 +33,7 @@ static void computeMapped() {
   // nearest first
   for (int a = 0; a < s_mappedCnt - 1; a++)
     for (int b = a + 1; b < s_mappedCnt; b++) {
-      if (s_mapped[b].d < s_mapped[a]) {
+      if (s_mapped[b].d < s_mapped[a].d) {
         Mapped t = s_mapped[a]; s_mapped[a] = s_mapped[b]; s_mapped[b] = t;
       }
     }
@@ -47,7 +47,7 @@ static void drawRings() {
     gfx->drawCircle(R_CX, R_CY, rr, C_DKGREEN);
   }
   gfx->drawLine(R_CX, R_CY - R_R, R_CX, R_CY + R_R, C_DKGREEN);
-  gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, C_DKGREEN);
+  gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, R_CY, C_DKGREEN);
   (void)R;
 }
 
@@ -142,7 +142,7 @@ static void drawPlanes_old(float sweep) {
   }
   float R = rangeKm();
   int shown = 0;
-  for (int i = 0; i < s_planeCount && shown < MAX_LABELS; shown++) {
+  for (int i = 0; i < s_planeCount && shown < MAX_LABELS; i++) {
     float d = planeDistKm(i);
     if (d > R) continue;
     float b = s_planes[i].bear * PI / 180;
