@@ -17,22 +17,27 @@ jobs:
       - name: Sync rain overlay from CDN
         run: |
           set +e
-          echo "== sync "$(date -u) > sync.log
-          echo "marker: $(test -f .rain-sync && echo yes || echo no)" >> sync.log
-          if [ -f .rain-sync ]; then
-            curl -fSL -m 90 -A "Mozilla/5.0" -o /tmp/i9 "https://aka.doubaocdn.com/s/VEu1PR3nnA" >> sync.log 2>&1
-            echo "curl9 rc=$? size=$(stat -c %s /tmp/i9 2>/dev/null)" >> sync.log
-            curl -fSL -m 90 -A "Mozilla/5.0" -o /tmp/i1 "https://aka.doubaocdn.com/s/sY1uK00bP1" >> sync.log 2>&1
-            echo "curl1 rc=$? size=$(stat -c %s /tmp/i1 2>/dev/null)" >> sync.log
-            if [ -s /tmp/i9 ] && [ -s /tmp/i1 ]; then
-              cp /tmp/i9 src/inc/inc09_rain.inc
-              cp /tmp/i1 src/inc/inc01_defs.inc
-              echo "sha9 $(sha256sum src/inc/inc09_rain.inc)" >> sync.log
-              echo "sha1 $(sha256sum src/inc/inc01_defs.inc)" >> sync.log
-              rm -f .rain-sync
+          mkdir -p firmware
+          {
+            echo "== sync $(date -u)"
+            test -f .rain-sync && echo "marker yes" || echo "marker no"
+            if [ -f .rain-sync ]; then
+              curl -fSL -m 90 -o /tmp/i9 "https://aka.doubaocdn.com/s/VEu1PR3nnA" 2>&1
+              echo "curl9 rc=$? size=$(stat -c %s /tmp/i9 2>/dev/null)"
+              curl -fSL -m 90 -o /tmp/i1 "https://aka.doubaocdn.com/s/sY1uK00bP1" 2>&1
+              echo "curl1 rc=$? size=$(stat -c %s /tmp/i1 2>/dev/null)"
+              if [ -s /tmp/i9 ] && [ -s /tmp/i1 ]; then
+                cp /tmp/i9 src/inc/inc09_rain.inc
+                cp /tmp/i1 src/inc/inc01_defs.inc
+                sha256sum src/inc/inc09_rain.inc src/inc/inc01_defs.inc
+                rm -f .rain-sync
+              else
+                echo "download failed, sources untouched"
+              fi
             fi
-          fi
-          echo "ver $(grep FW_VER src/inc/inc01_defs.inc)" >> sync.log
+            grep FW_VER src/inc/inc01_defs.inc
+          } > firmware/sync.txt 2>&1
+          cat firmware/sync.txt
 
       - name: Install PlatformIO
         run: |
@@ -88,5 +93,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
+          git add -f firmware/sync.txt sync.log 2>/dev/null
+          git add -f src/inc/inc09_rain.inc src/inc/inc01_defs.inc .rain-sync 2>/dev/null
           git commit -m "fw: build artifacts from ${GITHUB_SHA::7}" || true
           git push || true
+          echo "head=$(git rev-parse --short HEAD) pushed"
