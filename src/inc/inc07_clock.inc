@@ -14,7 +14,7 @@ static void drawHands(int hour, int minute, int second) {
 
 // ---------------- sunrise / sunset / moon ----------------
 // NOAA solar position (spreadsheet form). Local clock hours, no network needed.
-// Verified against Nankang 2026-11-08: sunrise 06:33, sunset 17:35.
+// Verified against Nankang 2026-11-08: sunrise 06:33, sunset 17:36.
 // NOTE: never name a variable "local" here - zlib (pulled in by PNGdec) defines
 // `local` as a macro, which rewrites the declaration into nonsense.
 static float s_sunRise = -1.0f, s_sunSet = -1.0f;
@@ -78,8 +78,8 @@ static void ensureAstro() {
   else if (ph < 0.78) nm = "下弦月";
   else nm = "残月";
   snprintf(s_moonName, sizeof(s_moonName), "%s", nm);
-  Serial.printf("[astro] rise %.2f set %.2f moon %s age %d\n", s_sunRise,
-                s_sunSet, s_moonName, s_moonAge);
+  Serial.printf("[astro] rise %.2f set %.2f moonAge %d\n", s_sunRise, s_sunSet,
+                s_moonAge);
 }
 
 static void drawClockCenter() {
@@ -87,50 +87,48 @@ static void drawClockCenter() {
   useFont(u8g2_font_logisoso24_tn);
   char dig[8];
   snprintf(dig, sizeof(dig), "%02d:%02d", s_tm.tm_hour, s_tm.tm_min);
-  txtC(dig, 66, C_YELLOW);
+  txtC(dig, 62, C_YELLOW);
 
   // date + weekday
   static const char *WD[7] = {"周日", "周一", "周二", "周三",
                               "周四", "周五", "周六"};
   useFont(u8g2_font_unifont_t_chinese4);
   char date[40];
-  snprintf(date, sizeof(date), "%04d-%02d-%02d %s",
-           s_tm.tm_year + 1900, s_tm.tm_mon + 1, s_tm.tm_mday, WD[s_tm.tm_wday]);
-  txtC(date, 98, C_WHITE);
+  snprintf(date, sizeof(date), "%02d-%02d %s", s_tm.tm_mon + 1, s_tm.tm_mday,
+           WD[s_tm.tm_wday]);
+  txtC(date, 94, C_WHITE);
 
   // city (Chinese)
-  useFont(u8g2_font_unifont_t_chinese4);
-  txtC(s_city, 120, C_ORANGE);
+  txtC(s_city, 114, C_ORANGE);
 
-  // weather chinese
-  useFont(u8g2_font_unifont_t_chinese4);
-  if (s_metOk) txtC(wmoZh(s_code), 140, C_CYAN);
+  // current weather in Chinese
+  if (s_metOk) txtC(wmoZh(s_code), 132, C_CYAN);
 
-  // bottom row
+  // temperature row
   useFont(u8g2_font_helvB08_tr);
   if (s_metOk) {
-    char b[48];
-    snprintf(b, sizeof(b), "%.0fC hum%.0f%% %s",
-             s_temp, s_hum, wmoZh(s_code));
-    txtC(b, 174, C_GREEN);
+    char b[40];
+    snprintf(b, sizeof(b), "%.0fC hum%.0f%%", s_temp, s_hum);
+    txtC(b, 148, C_GREEN);
   }
 
-  // sunrise / sunset (local computation, no network)
+  // sunrise / sunset, one row each: a single combined line overflows the circle
+  useFont(u8g2_font_unifont_t_chinese4);
   if (s_sunRise >= 0) {
-    char sr[40];
     int rh = (int)s_sunRise, rm = (int)((s_sunRise - rh) * 60);
     int sh = (int)s_sunSet, sm = (int)((s_sunSet - sh) * 60);
-    snprintf(sr, sizeof(sr), "日出%02d:%02d 日落%02d:%02d", rh, rm, sh, sm);
-    useFont(u8g2_font_unifont_t_chinese4);
-    txtC(sr, 190, C_CYAN);
+    char sr[24], ss[24];
+    snprintf(sr, sizeof(sr), "日出 %02d:%02d", rh, rm);
+    snprintf(ss, sizeof(ss), "日落 %02d:%02d", sh, sm);
+    txtC(sr, 166, C_CYAN);
+    txtC(ss, 182, C_CYAN);
   }
 
   // moon phase
   if (s_moonName[0]) {
     char mb[24];
     snprintf(mb, sizeof(mb), "%s %d天", s_moonName, s_moonAge);
-    useFont(u8g2_font_unifont_t_chinese4);
-    txtC(mb, 210, C_GRAY);
+    txtC(mb, 198, C_GRAY);
   }
 }
 
