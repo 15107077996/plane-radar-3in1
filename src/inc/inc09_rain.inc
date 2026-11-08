@@ -159,6 +159,12 @@ static void rainTileUrl(char *out, size_t n, const String &path, int tx, int ty)
              path.c_str(), WX_ZOOM, tx, ty);
 }
 
+// Base tiles are cached under their own coordinates, so a different city simply
+// misses the cache instead of painting the wrong map.
+static void baseName(char *out, size_t n, int i) {
+  snprintf(out, n, "/b%dx%d.png", s_tiles[i].tx, s_tiles[i].ty);
+}
+
 // Progress line kept on top of whatever has already been painted.
 static void loadText(const char *s) {
   gfx->fillRect(40, 92, 160, 20, C_BLACK);
@@ -184,7 +190,7 @@ static bool drawFrame(int f) {
   s_rainPx = 0;
   for (int i = 0; i < s_tileN; i++) {
     char p[16];
-    snprintf(p, sizeof(p), "/b%d.png", i);
+    baseName(p, sizeof(p), i);
     s_tileDx = s_tiles[i].dx;
     s_tileDy = s_tiles[i].dy;
     if (fsLoad(p) && decodePng(0)) ok = true;
@@ -211,8 +217,8 @@ static void rainAnimTick(unsigned long now) {
   drawRainHud();
 }
 
-// Cached base tile? Map tiles for a rural z7 cell barely change, so reuse it
-// from flash instead of burning a whole HTTP round-trip on every refresh.
+// Cached base tile? Map tiles for a z7 cell barely change, so reuse it from
+// flash instead of burning a whole HTTP round-trip on every refresh.
 static size_t cachedSize(const char *p) {
   if (!s_fsOk) return 0;
   File f = SPIFFS.open(p, "r");
@@ -321,7 +327,7 @@ static bool rainRefresh() {
   bool baseOk = false, rainOk = false;
   for (int i = 0; i < s_tileN; i++) {
     char p[16];
-    snprintf(p, sizeof(p), "/b%d.png", i);
+    baseName(p, sizeof(p), i);
     s_tileDx = s_tiles[i].dx;
     s_tileDy = s_tiles[i].dy;
     bool got = false;
