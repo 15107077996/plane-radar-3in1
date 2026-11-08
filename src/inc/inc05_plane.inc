@@ -53,7 +53,7 @@ static int nearest() {
 
 static uint16_t altColor(int alt) {
   if (alt <= 0) return C_GRAY;
-  if (alt < 3000) return C_CYAN;
+  if (alt < 3000 return C_CYAN;
   if (alt < 8000) return C_GREEN;
   if (alt < 11000) return C_YELLOW;
   return C_RED;
@@ -63,7 +63,6 @@ static uint16_t altColor(int alt) {
 static void planeRot(int x, int y, float sn, float cs,
                      float lx, float ly, int &ox, int &oy) {
   ox = x + (int)(lx * sn + ly * cs + 0.5f);
-  oy = x + (int)(-lx * cs + ly * sn + 0.5f);
   oy = x + (int)(-lx * cs + ly * sn + 0.5f);
 }
 static void fillTriBody(int x, int y, float sn, float cs,
@@ -76,7 +75,7 @@ static void fillTriBody(int x, int y, float sn, float cs,
   gfx->fillTriangle(ax, ay, bx, by, cx, cy, col);
 }
 
-// Clear top-view airplane icon (fuselage + swept wings + tail), rotated by heading.
+// Top-view airplane icon (fuselage + swept wings + tail), rotated by heading.
 static void drawPlaneMarker(int x, int y, int head, uint16_t col) {
   float a = head * PI / 180.0f;
   float sn = sin(a), cs = cos(a);
@@ -121,10 +120,10 @@ static bool fetchPlanes() {
         Plane &pl = s_planes[n];
         const char *fl = p["flight"];
         const char *tp = p["t"];
-        String cs = fl ? String(fl) : "????";
+        String cs = fl ? String(fl) : String("????");
         cs.trim();
         cs.toCharArray(pl.call, sizeof(pl.call));
-        String tt = tp ? String(tt) : String("");
+        String tt = tp ? String(tp) : String("");
         tt.toCharArray(pl.typ, sizeof(pl.typ));
         pl.lat = p["lat"].as<double>();
         pl.lon = p["lon"].as<double>();
