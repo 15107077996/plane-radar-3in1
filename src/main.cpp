@@ -556,7 +556,7 @@ static void drawPlanes(float sweep) {
   }
   // green crosshair
   gfx->drawLine(R_CX, R_CY - R_R, R_CX, R_CY + R_R, C_DKGREEN);
-  gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, C_DKGREEN);
+  gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, R_CY, C_DKGREEN);
 
   // range labels on right
   useFont(u8g2_font_helvB08_tr);
