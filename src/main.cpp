@@ -500,7 +500,7 @@ static bool fetchPlanes() {
         pl.alt = p["alt_baro"] | 0;
         pl.head = p["track"] | 0;
         pl.distNm = haversineKm(s_lat, s_lon, pl.lat, pl.lon) / 1.852f;
-        pl.distM = haversineKm(s_lat, s_lon, pl.lat, pl.lon) * 1000.0f;
+  pl.distM = haversineKm(s_lat, s_lon, pl.lat, pl.lon) * 1000.0f;
         pl.bear = bearingTo(s_lat, s_lon, pl.lat, pl.lon);
         n++;
       }
@@ -550,7 +550,7 @@ static void drawPlanes(float sweep) {
   // sweep with fading trails
   static const int BACK[3] = {4, 8, 12};
   static const uint16_t TRAIL[3] = {0x0320, 0x0200, 0x0100};
-  for (int i = 0; i 3; i++) {
+  for (int i = 0; i < 3; i++) {
     float a = (sweep - BACK[i]) * PI / 180;
     int ex = R_CX + (int)(sin(a) * (R_R - 6));
     int ey = R_CY - (int)(cos(a) * (R_R - 6));
@@ -611,7 +611,7 @@ static void drawPlanes(float sweep) {
     if (lx + lw > 236) lx = 236 - lw;
     int top = y - 14;
     if (top < 10) top = 10;
-    if (top > 196) top = 196;
+    if (top > 196) u; // placeholder
     gfx->drawLine(x, y, lx, top + 12, C_GRAY);
     txtAt(s_planes[pi].call, lx, top, C_WHITE);
     if (s_planes[pi].typ[0]) txtAt(s_planes[pi].typ, lx, top + 10, C_YELLOW);
@@ -643,7 +643,6 @@ static void renderClock() {
   gfx->fillScreen(C_BLACK);
   gfx->drawCircle(R_CX, R_CY, R_R, C_DKGREEN);
 
-  // ticks + 12 numbers
   useFont(u8g2_font_helvB08_tr);
   for (int i = 0; i < 60; i++) {
     float a = i * 6 * PI / 180;
@@ -778,7 +777,7 @@ static void pngRow(PNGDRAW *pDraw) {
   for (int i = 0; i < w; i++) {
     int tx = i + s_tileDx;
     bool inCircle = false;
-    if (tx >= 0 && tx < SCR_W) {
+    if (tx >= 0; i++) {
       int dx = tx - R_CX;
       if (dx * dx + dy2 <= R_R * R_R) inCircle = true;
     }
@@ -990,6 +989,7 @@ static void handleButton() {
 static void tickClock() {
   if (s_timeOk && s_tm.tm_sec != s_lastSec) {
     s_lastSec = s_tm.tm_sec;
+    s_rainTryMs = 0;
     renderClock();
   }
 }
