@@ -17,7 +17,7 @@
 #define PR_CS 1
 #endif
 #ifndef PR_DC
-#define PR_DC10
+#define PR_DC 10
 #endif
 #ifndef PR_MOSI
 #define PR_MOSI 3
@@ -550,7 +550,7 @@ static void drawPlanes(float sweep) {
   // sweep with fading trails
   static const int BACK[3] = {4, 8, 12};
   static const uint16_t TRAIL[3] = {0x0320, 0x0200, 0x0100};
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i 3; i++) {
     float a = (sweep - BACK[i]) * PI / 180;
     int ex = R_CX + (int)(sin(a) * (R_R - 6));
     int ey = R_CY - (int)(cos(a) * (R_R - 6));
@@ -665,13 +665,11 @@ static void renderClock() {
   }
 
   if (s_timeOk) {
-    // big digital time
     useFont(u8g2_font_logisoso24_tn);
     char dig[8];
     snprintf(dig, sizeof(dig), "%02d:%02d", s_tm.tm_hour, s_tm.tm_min);
     txtC(dig, 58, C_YELLOW);
 
-    // date + weekday
     static const char *WD[7] = {"周日", "周一", "周二", "周三",
                                 "周四", "周五", "周六"};
     useFont(u8g2_font_unifont_t_chinese4);
@@ -680,15 +678,12 @@ static void renderClock() {
              s_tm.tm_year + 1900, s_tm.tm_mon + 1, s_tm.tm_mday, WD[s_tm.tm_wday]);
     txtC(date, 92, C_WHITE);
 
-    // city
     useFont(u8g2_font_helvB10_tr);
     txtC(s_city, 116, C_ORANGE);
 
-    // weather chinese
     useFont(u8g2_font_unifont_t_chinese4);
     if (s_metOk) txtC(wmoZh(s_code), 138, C_CYAN);
 
-    // bottom row
     useFont(u8g2_font_helvB08_tr);
     if (s_metOk) {
       char b[48];
@@ -708,7 +703,6 @@ static void renderForecast() {
   gfx->fillScreen(C_BLACK);
   gfx->drawCircle(R_CX, R_CY, R_R, C_DKGREEN);
 
-  // top: city left, icon center, temps right
   useFont(u8g2_font_helvB10_tr);
   txtAt(s_city.c_str(), 28, 34, C_YELLOW);
   if (s_metOk) {
@@ -729,7 +723,6 @@ static void renderForecast() {
 
   gfx->drawLine(30, 76, 210, 76, C_DKGREEN);
 
-  // 3 columns
   static const char *DL[3] = {"明天", "后天", "大后天"};
   int colX[3] = {48, 120, 192};
   useFont(u8g2_font_unifont_t_chinese4);
@@ -753,7 +746,6 @@ static void renderForecast() {
 
   gfx->drawLine(30, 162, 210, 162, C_DKGREEN);
 
-  // bottom row
   useFont(u8g2_font_helvB08_tr);
   if (s_metOk) {
     char b[64];
@@ -803,7 +795,7 @@ static void pngRow(PNGDRAW *pDraw) {
                        ((px[i * 3 + 1] & 0xFC) << 3) | (px[i * 3 + 2] >> 3));
     } else if (iPixelType == PNG_PIXEL_INDEXED) {
       uint8_t idx = px[i];
-      uint8_t a = pDraw->pPalette[768 + idx]; // tRNS alpha, default 255
+      uint8_t a = pDraw->pPalette[768 + idx];
       if (idx == 0 || a < 30) trans = true;
       else {
         uint8_t r = pDraw->pPalette[idx * 3];
@@ -817,15 +809,13 @@ static void pngRow(PNGDRAW *pDraw) {
       col = (uint16_t)(((g8 & 0xF8) << 8) | ((g8 & 0xFC) << 3) | (g8 >> 3));
     }
     linebuf[i] = col;
-    if (s_pngMode == 0) opaque[i] = inCircle;            // base: ignore alpha
-    else opaque[i] = inCircle && !trans;                // rain: skip transparent
+    if (s_pngMode == 0) opaque[i] = inCircle;
+    else opaque[i] = inCircle && !trans;
   }
 
   if (s_pngMode == 0) {
-    // full-width single burst, out-of-circle black
     gfx->draw16bitRGBBitmap(s_tileDx, ty, linebuf, 256, 1);
   } else {
-    // contiguous opaque runs, never overwriting base on transparent pixels
     int i = 0;
     while (i < w) {
       if (!opaque[i]) { i++; continue; }
@@ -1022,7 +1012,8 @@ static void tickForecast(unsigned long now) {
   }
 }
 static void tickRain(unsigned long now) {
-  if ((!s_rainOk && now - s_rainTryMs >= 30000) {
+  if ((!s_rainOk && now - s_rainTryMs >= 30000) ||
+      (s_rainOk && now - s_rainMs >= 600000)) {
     s_rainTryMs = now;
     rainRefresh();
   }
@@ -1060,7 +1051,7 @@ void setup() {
   }
 
   WiFi.mode(WIFI_STA);
-  WiFi.begin(s_ssid.c_str(), s_prefs.c_str());
+  WiFi.begin(s_ssid.c_str(), s_pass.c_str());
   useFont(u8g2_font_helvB08_tr);
   txtC("WIFI...", 110, C_YELLOW);
   int wtry = 0;
@@ -1079,7 +1070,7 @@ void setup() {
 
   locateByIp();
   syncTime();
-  fetchOpenMMeteo();
+  fetchOpenMeteo();
   fetchPlanes();
 
   s_screen = SCR_CLOCK;
