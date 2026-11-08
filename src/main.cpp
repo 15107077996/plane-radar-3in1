@@ -1024,7 +1024,7 @@ static bool rainRefresh() {
 
   HTTPClient http;
   http.begin("http://api.rainviewer.com/public/weather-maps.json");
-  int code = http GET();
+  int code = http.GET();
   if (code != 200) { Serial.printf("[rain] meta http=%d\n", code); http.end(); releasePngBuf(); return false; }
   String meta = http.getString();
   http.end();
