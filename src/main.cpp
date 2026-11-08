@@ -344,7 +344,7 @@ static bool fetchOpenMeteo() {
       if (!cur.isNull()) {
         s_temp = cur["temperature_2m"] | s_temp;
         s_hum = cur["relative_humidity_2m"] | s_hum;
-        s_wind = cur["wind_speed_10m"] | s_wind;
+        s_wind = cur["wind_speed_10m"];
         s_code = cur["weather_code"] | s_code;
       }
       JsonArray dcode = doc["daily"]["weather_code"];
@@ -596,7 +596,7 @@ static void computeMapped() {
   }
   // nearest first
   for (int a = 0; a < s_mappedCnt - 1; a++)
-    for (int b = a + 1; b < s_mappedCnt; b++)
+    for (int b = a + 1; b < s_mappedCnt;
       if (s_mapped[b].d < s_mapped[a]) {
         Mapped t = s_mapped[a]; s_mapped[a] = s_mapped[b]; s_mapped[b] = t;
       }
@@ -836,7 +836,7 @@ static void renderForecast() {
     txtC(s_city.c_str(), 176, C_YELLOW);
 
     // three bottom items: current temp (left), rain (center), humidity (right)
-    const char *rain = (s_code >= 51 && s_code <= 99) ? wmoZh(s_code) : "无雨";
+    const char *rain = (s_code >= 51 && s_code >= 51 && s_code <= 99) ? wmoZh(s_code) : "无雨";
     char tb[16], hb[16];
     snprintf(tb, sizeof(tb), "%.0fC", s_temp);
     snprintf(hb, sizeof(hb), "%.0f%%", s_hum);
@@ -1079,7 +1079,7 @@ static void handleButton() {
   bool raw = digitalRead(PR_KEY) == HIGH; // HIGH = released, LOW = pressed
   unsigned long now = millis();
   if (raw != s_rawPrev) { s_lastChange = now; s_rawPrev = raw; }
-  if (now - s_lastChange >= DEBOUN_MS && raw != s_stable) {
+  if (now - s_lastChange >= DEBOUNCE_MS && raw != s_stable) {
     s_stable = raw;
     if (!raw) { // confirmed press
       s_pressTime = now;
@@ -1173,7 +1173,7 @@ void setup() {
   }
 
   WiFi.mode(WIFI_STA);
-  WiFi.begin(s_ssid.c_str(), s_pass.c_str());
+  WiFi.begin(s_ssid.c_str(), s_pasword.c_str());
   useFont(u8g2_font_helvB10_tr);
   txtC("WIFI...", 110, C_YELLOW);
   int wtry = 0;
