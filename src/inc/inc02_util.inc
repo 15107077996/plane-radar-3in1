@@ -177,7 +177,7 @@ static void locateByIp() {
         // Prefer the proper county/city name from reverse geocoding;
         // fall back to ip-api city, then region, then keep current.
         String rn = reverseName(s_lat, s_lon);
-        if (rn.length()) s_city = String(rn);
+        if (rn.length()) s_city = rn;
         else if (ci && ci[0]) s_city = String(ci);
         else if (rg && rg[0]) s_city = String(rg);
         saveCfg();
