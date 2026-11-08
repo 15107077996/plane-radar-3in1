@@ -271,7 +271,7 @@ static void startPortal() {
   gfx->fillScreen(C_BLACK);
   txtC("SETUP WIFI", 100, C_YELLOW);
   txtC("PlaneRadar-Setup", 122, C_WHITE);
-  txtC("192.168.4.1", 144, C_GRAY);
+  txtC("192.168.4.1", 144, C_CYAN);
   while (true) {
     s_srv->handleClient();
     delay(10);
@@ -699,7 +699,7 @@ static void drawPlanes_old(float sweep) {
   gfx->drawCircle(R_CX, R_CY, R_R, C_RED);
   gfx->drawCircle(R_CX, R_CY, R_R - 3, C_RED);
   gfx->drawLine(R_CX, R_CY - R_R, R_CX, R_CY + R_R, C_DKGREEN);
-  gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, R_CY, C_DKGREEN);
+  gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, C_DKGREEN);
   for (int f = 1; f <= 3; f++) {
     int rr = (int)(R_R * f / 3);
     gfx->drawCircle(R_CX, R_CY, rr, C_DKGREEN);
@@ -952,7 +952,7 @@ static void pngRow(PNGDRAW *pDraw) {
     // full-width single burst, out-of-circle black
     gfx->draw16bitRGBBitmap(s_tileDx, ty, linebuf, 256, 1);
   } else {
-    // contiguous opaque runs, never overwriting base on transparent pixels
+    // contiguous opaque runs, now overwriting base on transparent pixels
     int i = 0;
     while (i < w) {
       if (!opaque[i]) { i++; continue; }
@@ -973,7 +973,7 @@ static bool decodePng(int mode) {
   }
   int pngW = s_png.getWidth();
   int pngH = s_png.getHeight();
-  s_png.decode(0, 0);
+  rc = s_png.decode(0, 0);
   s_png.close();
   bool benign = (rc != PNG_SUCCESS && s_wxRows >= pngH);
   if (rc != PNG_SUCCESS && !benign) {
@@ -1167,7 +1167,8 @@ static void tickPlanes(unsigned long now) {
   }
 }
 static void tickForecast(unsigned long now) {
-  if ((!s_metOk && now - s_metTryMs >= 30000) {
+  if ((!s_metOk && now - s_metTryMs >= 30000) ||
+      (s_metOk && now - s_metMs >= 600000)) {
     s_metTryMs = now;
     fetchOpenMeteo();
   }
@@ -1200,7 +1201,7 @@ void setup() {
   int ver = s_prefs.getInt("ver", 0);
   s_ssid = s_prefs.getString("ssid", "");
   s_pass = s_prefs.getString("pass", "");
-  s_lat = s_prefs210
+  s_lat = s_prefs.getFloat("lat", 23.3924f);
   s_lon = s_prefs.getFloat("lon", 113.2988f);
   s_city = s_prefs.getString("city", "Guangzhou");
   s_cfgValid = (ver == CFG_VER && s_ssid.length() > 0);
