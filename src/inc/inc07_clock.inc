@@ -15,6 +15,8 @@ static void drawHands(int hour, int minute, int second) {
 // ---------------- sunrise / sunset / moon ----------------
 // NOAA solar position (spreadsheet form). Local clock hours, no network needed.
 // Verified against Nankang 2026-11-08: sunrise 06:33, sunset 17:35.
+// NOTE: never name a variable "local" here - zlib (pulled in by PNGdec) defines
+// `local` as a macro, which rewrites the declaration into nonsense.
 static float s_sunRise = -1.0f, s_sunSet = -1.0f;
 static char s_moonName[8] = "";
 static int s_moonAge = 0;
@@ -42,10 +44,10 @@ static bool sunTimes(float lat, float lon, int yday, float &riseH, float &setH) 
     if (cosH > 1.0f || cosH < -1.0f) return false; // polar day / night
     float H = (float)rad2deg(acos(cosH)) / 15.0f;
     float T2 = RA + (pass == 0 ? -H : H) - (0.06571f * T) - 6.622f;
-    float local = fmodf(T2 - lngHour + 8.0f, 24.0f); // CST-8
-    if (local < 0) local += 24.0f;
-    if (pass == 0) riseH = local;
-    else setH = local;
+    float clk = fmodf(T2 - lngHour + 8.0f, 24.0f); // CST-8 clock hours
+    if (clk < 0) clk += 24.0f;
+    if (pass == 0) riseH = clk;
+    else setH = clk;
   }
   return true;
 }
