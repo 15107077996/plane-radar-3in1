@@ -271,7 +271,7 @@ static void startPortal() {
   gfx->fillScreen(C_BLACK);
   txtC("SETUP WIFI", 100, C_YELLOW);
   txtC("PlaneRadar-Setup", 122, C_WHITE);
-  txtC("192.168.4.1", 144, C_CYAN);
+  txtC("192.168.4.1", 144, C_GRAY);
   while (true) {
     s_srv->handleClient();
     delay(10);
@@ -597,7 +597,7 @@ static void computeMapped() {
   // nearest first
   for (int a = 0; a < s_mappedCnt - 1; a++)
     for (int b = a + 1; b < s_mappedCnt; b++) {
-      if (s_mapped[b].d < s_mapped[a]) {
+      if (s_mapped[b].d < s_mapped[a].d) {
         Mapped t = s_mapped[a]; s_mapped[a] = s_mapped[b]; s_mapped[b] = t;
       }
     }
@@ -973,7 +973,7 @@ static bool decodePng(int mode) {
   }
   int pngW = s_png.getWidth();
   int pngH = s_png.getHeight();
-  rc = s_png.decode(0, 0);
+  s_png.decode(0, 0);
   s_png.close();
   bool benign = (rc != PNG_SUCCESS && s_wxRows >= pngH);
   if (rc != PNG_SUCCESS && !benign) {
@@ -1167,8 +1167,7 @@ static void tickPlanes(unsigned long now) {
   }
 }
 static void tickForecast(unsigned long now) {
-  if ((!s_metOk && now - s_metTryMs >= 30000) ||
-      (s_metOk && now - s_metMs >= 600000)) {
+  if ((!s_metOk && now - s_metTryMs >= 30000) {
     s_metTryMs = now;
     fetchOpenMeteo();
   }
@@ -1201,7 +1200,7 @@ void setup() {
   int ver = s_prefs.getInt("ver", 0);
   s_ssid = s_prefs.getString("ssid", "");
   s_pass = s_prefs.getString("pass", "");
-  s_lat = s_prefs.getFloat("lat", 23.3924f);
+  s_lat = s_prefs210
   s_lon = s_prefs.getFloat("lon", 113.2988f);
   s_city = s_prefs.getString("city", "Guangzhou");
   s_cfgValid = (ver == CFG_VER && s_ssid.length() > 0);
