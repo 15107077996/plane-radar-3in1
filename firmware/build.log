@@ -41,7 +41,7 @@ Collecting bitarray<4.0,>=3.0.0 (from bitstring~=4.3.1)
 Collecting pycparser (from cffi>=1.14->cryptography~=45.0.3)
   Using cached pycparser-3.12-py3-none-any.whl.metadata (9.7 kB)
 Downloading cryptography-45.0.7-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 17.4 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 67.9 MB/s  0:00:00
 Downloading ecdsa-0.19.2-py2.py3-none-any.whl (150 kB)
 Downloading bitstring-4.3.1-py3-none-any.whl (71 kB)
 Using cached reedsolo-1.7.0-py3-none-any.whl (32 kB)
@@ -102,11 +102,11 @@ Compiling .pio/build/esp32c3/src/main.cpp.o
 Building .pio/build/esp32c3/bootloader.bin
 Generating partitions .pio/build/esp32c3/partitions.bin
 Compiling .pio/build/esp32c3/lib30b/SPI/SPI.cpp.o
-Compiling .pio/build/esp32c3/liba33/Wire/Wire.cpp.o
 esptool.py v4.9.0
 Creating esp32c3 image...
 Merged 1 ELF section
 Successfully created esp32c3 image.
+Compiling .pio/build/esp32c3/liba33/Wire/Wire.cpp.o
 Compiling .pio/build/esp32c3/lib260/U8g2/U8g2lib.cpp.o
 Archiving .pio/build/esp32c3/lib30b/libSPI.a
 Indexing .pio/build/esp32c3/lib30b/libSPI.a
@@ -126,18 +126,24 @@ Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_d_memory.c.o
 Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_d_setup.c.o
 Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_font.c.o
 Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_fonts.c.o
-src/main.cpp: In function 'void handleSave()':
-src/main.cpp:238:57: error: no match for 'operator=' (operand types are 'Preferences' and 'String')
-   if (s_srv->hasArg("pass")) s_prefs = s_srv->arg("pass");
-                                                         ^
-In file included from src/main.cpp:7:
-/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/Preferences/src/Preferences.h:23:7: note: candidate: 'Preferences& Preferences::operator=(const Preferences&)'
- class Preferences {
-       ^~~~~~~~~~~
-/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/Preferences/src/Preferences.h:23:7: note:   no known conversion for argument 1 from 'String' to 'const Preferences&'
-src/main.cpp: In function 'void renderClock()':
-src/main.cpp:699:15: error: expected primary-expression before '...' token
-     drawHands(...);
-               ^~~
+src/main.cpp: In function 'void tickRain(long unsigned int)':
+src/main.cpp:1025:48: error: expected ')' before '{' token
+   if ((!s_rainOk && now - s_rainTryMs >= 30000) {
+      ~                                         ^~
+                                                )
+src/main.cpp:1029:1: error: expected primary-expression before '}' token
+ }
+ ^
+src/main.cpp: In function 'void setup()':
+src/main.cpp:1063:38: error: 'class Preferences' has no member named 'c_str'
+   WiFi.begin(s_ssid.c_str(), s_prefs.c_str());
+                                      ^~~~~
+src/main.cpp:1082:3: error: 'fetchOpenMMeteo' was not declared in this scope
+   fetchOpenMMeteo();
+   ^~~~~~~~~~~~~~~
+src/main.cpp:1082:3: note: suggested alternative: 'fetchOpenMeteo'
+   fetchOpenMMeteo();
+   ^~~~~~~~~~~~~~~
+   fetchOpenMeteo
 *** [.pio/build/esp32c3/src/main.cpp.o] Error 1
-========================= [FAILED] Took 53.96 seconds =========================
+========================= [FAILED] Took 54.53 seconds =========================
