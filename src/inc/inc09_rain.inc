@@ -104,8 +104,8 @@ static bool decodePng(int mode) {
 
 static bool downloadToBuf(const char *url) {
   HTTPClient http;
-  http.setConnectTimeout(6000);
-  http.setTimeout(8000);
+  http.setConnectTimeout(4500);
+  http.setTimeout(6500);
   http.begin(url);
   int code = http.GET();
   if (code != 200) {
@@ -139,7 +139,7 @@ static bool downloadToBuf(const char *url) {
       s_pngLen += got;
     } else {
       delay(2);
-      if (millis() - start > 12000) break;
+      if (millis() - start > 8000) break;
     }
   }
   http.end();
@@ -157,6 +157,13 @@ static void rainTileUrl(char *out, size_t n, const String &path, int tx, int ty)
   else
     snprintf(out, n, "http://tilecache.rainviewer.com%s/256/%d/%d/%d/2/1_1.png",
              path.c_str(), WX_ZOOM, tx, ty);
+}
+
+// Progress line kept on top of whatever has already been painted.
+static void loadText(const char *s) {
+  gfx->fillRect(40, 92, 160, 20, C_BLACK);
+  useFont(u8g2_font_unifont_t_chinese4);
+  txtC(s, 106, C_CYAN);
 }
 
 static void drawRainHud() {
@@ -204,6 +211,17 @@ static void rainAnimTick(unsigned long now) {
   drawRainHud();
 }
 
+// Cached base tile? Map tiles for a rural z7 cell barely change, so reuse it
+// from flash instead of burning a whole HTTP round-trip on every refresh.
+static size_t cachedSize(const char *p) {
+  if (!s_fsOk) return 0;
+  File f = SPIFFS.open(p, "r");
+  if (!f) return 0;
+  size_t sz = (size_t)f.size();
+  f.close();
+  return sz;
+}
+
 static bool rainRefresh() {
   unsigned long t0 = millis();
   s_rainOk = false;
@@ -225,23 +243,23 @@ static bool rainRefresh() {
   gfx->fillScreen(C_BLACK);
   useFont(u8g2_font_unifont_t_chinese4);
   txtC("降雨云图", 104, C_YELLOW);
-  txtC("加载中...", 126, C_WHITE);
+  loadText("读取数据...");
 
   HTTPClient http;
-  http.setConnectTimeout(6000);
-  http.setTimeout(8000);
+  http.setConnectTimeout(4500);
+  http.setTimeout(6500);
   http.begin("http://api.rainviewer.com/public/weather-maps.json");
   int code = http.GET();
   if (code != 200) {
     Serial.printf("[rain] meta http=%d\n", code); http.end();
-    txtC("云图网络错误", 150, C_RED); releasePngBuf(); return false;
+    loadText("云图网络错误"); releasePngBuf(); return false;
   }
   String meta = http.getString();
   http.end();
   JsonDocument doc;
   if (deserializeJson(doc, meta)) {
     Serial.println("[rain] meta json fail");
-    txtC("云图数据错误", 150, C_RED); releasePngBuf(); return false;
+    loadText("云图数据错误"); releasePngBuf(); return false;
   }
 
   // Frame list: radar past frames (newest 3) or satellite IR (newest 3).
@@ -250,7 +268,7 @@ static bool rainRefresh() {
   int total = (arr.isNull()) ? 0 : (int)arr.size();
   if (total <= 0) {
     Serial.println("[rain] no frames");
-    txtC("暂无云图", 150, C_RED);
+    loadText("暂无云图");
     releasePngBuf();
     return false;
   }
@@ -263,7 +281,7 @@ static bool rainRefresh() {
   }
   s_frameN = want;
   if (s_frameN <= 0) {
-    txtC("暂无云图", 150, C_RED);
+    loadText("暂无云图");
     releasePngBuf();
     return false;
   }
@@ -302,22 +320,30 @@ static bool rainRefresh() {
   gfx->fillScreen(C_BLACK);
   bool baseOk = false, rainOk = false;
   for (int i = 0; i < s_tileN; i++) {
-    s_tileDx = s_tiles[i].dx;
-    s_tileDy = s_tiles[i].dy;
-    snprintf(url, sizeof(url),
-             "http://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1"
-             "&scale=1&style=8&x=%d&y=%d&z=%d",
-             s_tiles[i].tx, s_tiles[i].ty, WX_ZOOM);
-    if (!downloadToBuf(url)) continue;
-    decodePng(0);
-    baseOk = true;
     char p[16];
     snprintf(p, sizeof(p), "/b%d.png", i);
-    fsSave(p, s_pngLen);
+    s_tileDx = s_tiles[i].dx;
+    s_tileDy = s_tiles[i].dy;
+    bool got = false;
+    if (cachedSize(p) > 2000) got = (fsLoad(p) && decodePng(0));
+    if (!got) {
+      snprintf(url, sizeof(url),
+               "http://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1"
+               "&scale=1&style=8&x=%d&y=%d&z=%d",
+               s_tiles[i].tx, s_tiles[i].ty, WX_ZOOM);
+      if (downloadToBuf(url)) {
+        decodePng(0);
+        fsSave(p, s_pngLen);
+        got = true;
+      }
+    }
+    if (got) baseOk = true;
+    char prog[24];
+    snprintf(prog, sizeof(prog), "底图 %d/%d", i + 1, s_tileN);
+    loadText(prog);
   }
   if (!baseOk) {
-    useFont(u8g2_font_unifont_t_chinese4);
-    txtC("底图加载失败", 120, C_RED);
+    loadText("底图加载失败");
     releasePngBuf();
     return false;
   }
@@ -334,12 +360,7 @@ static bool rainRefresh() {
     }
   } else {
     // download every frame and cache it, then start the loop animation
-    useFont(u8g2_font_unifont_t_chinese4);
     for (int f = 0; f < s_frameN; f++) {
-      char prog[24];
-      snprintf(prog, sizeof(prog), "云图 %d/%d", f + 1, s_frameN);
-      gfx->fillRect(60, 96, 120, 20, C_BLACK);
-      txtC(prog, 100, C_CYAN);
       bool any = false;
       for (int i = 0; i < s_tileN; i++) {
         s_tileDx = s_tiles[i].dx;
@@ -352,8 +373,10 @@ static bool rainRefresh() {
         any = true;
       }
       if (any) rainOk = true;
+      char prog[24];
+      snprintf(prog, sizeof(prog), "云图 %d/%d", f + 1, s_frameN);
+      loadText(prog);
     }
-    gfx->fillRect(50, 92, 140, 26, C_BLACK);
     if (rainOk) {
       s_animReady = true;
       s_animFrame = s_frameN - 1;
@@ -362,8 +385,7 @@ static bool rainRefresh() {
   }
 
   if (!rainOk) {
-    useFont(u8g2_font_unifont_t_chinese4);
-    txtC("雨层加载失败", 120, C_RED);
+    loadText("雨层加载失败");
   } else {
     drawRainHud();
     s_rainMs = millis();
@@ -374,7 +396,7 @@ static bool rainRefresh() {
   }
 
   releasePngBuf();
-  (void)t0;
   s_rainCostMs = millis() - t0;
+  Serial.printf("[rain] cost=%lums\n", s_rainCostMs);
   return rainOk;
 }
