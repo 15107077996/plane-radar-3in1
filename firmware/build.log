@@ -41,7 +41,7 @@ Collecting bitarray<4.0,>=3.0.0 (from bitstring~=4.3.1)
 Collecting pycparser (from cffi>=1.14->cryptography~=45.0.3)
   Using cached pycparser-3.12-py3-none-any.whl.metadata (9.7 kB)
 Downloading cryptography-45.0.7-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 16.7 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 68.6 MB/s  0:00:00
 Downloading ecdsa-0.19.2-py2.py3-none-any.whl (150 kB)
 Downloading bitstring-4.3.1-py3-none-any.whl (71 kB)
 Using cached reedsolo-1.7.0-py3-none-any.whl (32 kB)
@@ -347,10 +347,10 @@ Compiling .pio/build/esp32c3/lib062/PNGdec/inftrees.c.o
 Compiling .pio/build/esp32c3/lib062/PNGdec/zutil.c.o
 Compiling .pio/build/esp32c3/lib989/WiFi/WiFi.cpp.o
 Compiling .pio/build/esp32c3/lib989/WiFi/WiFiAP.cpp.o
-Archiving .pio/build/esp32c3/libb29/libGFX Library for Arduino.a
 Archiving .pio/build/esp32c3/lib062/libPNGdec.a
 Indexing .pio/build/esp32c3/lib062/libPNGdec.a
 Compiling .pio/build/esp32c3/lib989/WiFi/WiFiClient.cpp.o
+Archiving .pio/build/esp32c3/libb29/libGFX Library for Arduino.a
 Compiling .pio/build/esp32c3/lib989/WiFi/WiFiGeneric.cpp.o
 Compiling .pio/build/esp32c3/lib989/WiFi/WiFiMulti.cpp.o
 Indexing .pio/build/esp32c3/libb29/libGFX Library for Arduino.a
@@ -373,12 +373,12 @@ Archiving .pio/build/esp32c3/libe70/libPreferences.a
 Indexing .pio/build/esp32c3/libe70/libPreferences.a
 Compiling .pio/build/esp32c3/lib1ce/WebServer/Parsing.cpp.o
 Compiling .pio/build/esp32c3/lib1ce/WebServer/WebServer.cpp.o
-Archiving .pio/build/esp32c3/lib7aa/libFS.a
-Indexing .pio/build/esp32c3/lib7aa/libFS.a
-Compiling .pio/build/esp32c3/lib1ce/WebServer/detail/mimetable.cpp.o
-Compiling .pio/build/esp32c3/FrameworkArduino/Esp.cpp.o
 Archiving .pio/build/esp32c3/lib67b/libHTTPClient.a
 Indexing .pio/build/esp32c3/lib67b/libHTTPClient.a
+Compiling .pio/build/esp32c3/lib1ce/WebServer/detail/mimetable.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/Esp.cpp.o
+Archiving .pio/build/esp32c3/lib7aa/libFS.a
+Indexing .pio/build/esp32c3/lib7aa/libFS.a
 Compiling .pio/build/esp32c3/FrameworkArduino/FirmwareMSC.cpp.o
 Compiling .pio/build/esp32c3/FrameworkArduino/FunctionalInterrupt.cpp.o
 Compiling .pio/build/esp32c3/FrameworkArduino/HWCDC.cpp.o
@@ -433,7 +433,7 @@ Retrieving maximum program size .pio/build/esp32c3/firmware.elf
 Checking size .pio/build/esp32c3/firmware.elf
 Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
 RAM:   [===       ]  28.1% (used 92084 bytes from 327680 bytes)
-Flash: [====      ]  42.2% (used 1328832 bytes from 3145728 bytes)
+Flash: [====      ]  42.3% (used 1329122 bytes from 3145728 bytes)
 Building .pio/build/esp32c3/firmware.bin with action:
   "$PYTHONEXE" "$OBJCOPY" --chip esp32c3 elf2image --flash_mode ${__get_board_flash_mode(__env__)} --flash_freq ${__get_board_f_image(__env__)} --flash_size 4MB --elf-sha256-offset 0xb0 -o $TARGET $SOURCES
 Building .pio/build/esp32c3/firmware.bin
@@ -441,4 +441,4 @@ esptool.py v4.9.0
 Creating esp32c3 image...
 Merged 2 ELF sections
 Successfully created esp32c3 image.
-======================== [SUCCESS] Took 171.19 seconds ========================
+======================== [SUCCESS] Took 170.77 seconds ========================
