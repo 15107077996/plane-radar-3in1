@@ -55,7 +55,7 @@
 #define C_DKBLUE 0x0210
 
 // ---------------- version ----------------
-#define FW_VER "1.2.1-c3"
+#define FW_VER "1.2.2-c3"
 #define CFG_VER 105
 #define WX_ZOOM 7
 #define FETCH_NM 250.0
@@ -611,7 +611,7 @@ static void drawRings() {
     gfx->drawCircle(R_CX, R_CY, rr, C_DKGREEN);
   }
   gfx->drawLine(R_CX, R_CY - R_R, R_CX, R_CY + R_R, C_DKGREEN);
-  gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, R_CY, C_DKGREEN);
+  gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, C_DKGREEN);
   (void)R;
 }
 
@@ -696,8 +696,8 @@ static void drawPlanes(float sweep) {
 // Legacy full-screen redraw kept for reference; compiler ignores this block.
 static void drawPlanes_old(float sweep) {
   gfx->fillScreen(C_BLACK);
-  gfx->drawCircle(R_CX, R_CY, R_R, C_RED);
-  gfx->drawCircle(R_CX, R_CY, R_R - 3, C_RED);
+  gfx->drawCircle(R_CX, R_CY, R_R);
+  gfx->drawCircle(R_CX, R_CY, R_R - 3, R_R);
   gfx->drawLine(R_CX, R_CY - R_R, R_CX, R_CY + R_R, C_DKGREEN);
   gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, C_DKGREEN);
   for (int f = 1; f <= 3; f++) {
@@ -851,7 +851,7 @@ static void renderForecast() {
   useFont(u8g2_font_unifont_t_chinese4);
   for (int i = 0; i < 3; i++) {
     int w = textW(DL[i]);
-    txtAt(DL[i], colX[i] - w / 2, 90, C_CYAN);
+    txtAt(DL[i], colX - w / 2, 90, C_CYAN);
   }
   if (s_metOk) {
     for (int i = 0; i < 3; i++) {
@@ -860,10 +860,10 @@ static void renderForecast() {
       char tt[24];
       snprintf(tt, sizeof(tt), "%.0f/%.0f", s_days[i].tmin, s_days[i].tmax);
       int w = textW(tt);
-      txtAt(tt, colX[i] - w / 2, 132, C_WHITE);
+      txtAt(tt, colX - w / 2, 132, C_WHITE);
       useFont(u8g2_font_unifont_t_chinese4);
       int zw = textW(wmoZh(s_days[i].code));
-      txtAt(wmoZh(s_days[i].code), colX[i] - zw / 2, 150, C_GREEN);
+      txtAt(wmoZh(s_days[i].code), colX - zw / 2, 150, C_GREEN);
     }
   }
 
@@ -941,7 +941,7 @@ static void pngRow(PNGDRAW *pDraw) {
       if (s_pngMode == 1 && !trans && inCircle) s_rainPx++;
     } else {
       uint8_t g8 = px[i];
-      col = (uint16_t)(((g8 & 0xF8) << 8) | ((g8 & 0xFC) << 3) | (g8 >> 3));
+      col = (uint16_t)(((g8 & 0xF8) << 8) | ((g & 0xFC) << 3) | (g8 >> 3));
     }
     linebuf[i] = col;
     if (s_pngMode == 0) opaque[i] = inCircle;            // base: ignore alpha
@@ -989,7 +989,7 @@ static bool downloadToBuf(const char *url) {
   http.begin(url);
   int code = http.GET();
   if (code != 200) {
-    Serial.printf("[dl] %s http=%d\n", url, code);
+    Serial.printf("[dl] %s http=%d\n", url, http);
     http.end();
     return false;
   }
@@ -1099,18 +1099,22 @@ static void enterPage(int page) {
 
 // ---------------- button ----------------
 #define DEBOUNCE_MS 20
-#define HOLD_MS 600
+#define HOLD_MS 750
 static bool s_rawPrev = true;        // last raw level (true = released)
 static bool s_stable = true;         // debounced level
 static unsigned long s_lastChange = 0;
 static unsigned long s_pressTime = 0;
 static bool s_longFired = false;
+static bool s_suppressRelease = false; // swallow the release that ends a long-press
 
 static void buttonResync() {
   bool raw = digitalRead(PR_KEY) == HIGH;
   s_rawPrev = raw;
   s_stable = raw;
   s_lastChange = millis();
+  // Reset the hold timer so a key still held after a blocking build does not
+  // instantly re-fire the long-press on the next loop.
+  s_pressTime = millis();
   s_longFired = false;
 }
 
@@ -1123,8 +1127,12 @@ static void handleButton() {
     if (!raw) { // confirmed press
       s_pressTime = now;
       s_longFired = false;
+      s_suppressRelease = false;
     } else {    // confirmed release
-      if (!s_longFired) {
+      if (s_suppressRelease) {
+        // This release belongs to a long-press: swallow it, no page change.
+        s_suppressRelease = false;
+      } else if (!s_longFired) {
         int next = (s_screen + 1) % 4;
         Serial.printf("[key] short -> page %d\n", next);
         enterPage(next);
@@ -1133,6 +1141,7 @@ static void handleButton() {
   }
   if (!s_stable && !s_longFired && now - s_pressTime >= HOLD_MS) {
     s_longFired = true;
+    s_suppressRelease = true;
     s_rangeIdx = (s_rangeIdx + 1) % 6;
     Serial.printf("[key] long range -> %.0fkm\n", rangeKm());
     enterPage(SCR_PLANES);
@@ -1152,7 +1161,7 @@ static void tickClock() {
 static void tickPlanes(unsigned long now) {
   if (now - s_sweepMs >= 100) {
     s_sweepMs = now;
-    // Erase the old wedge, restore static content, then draw the new wedge.
+    // Erase the old wedge, restore static content, then draw new wedge.
     // No full-screen fill -> no flicker.
     drawWedge(s_sweep, true);
     drawRings();
