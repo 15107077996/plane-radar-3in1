@@ -1,14 +1,53 @@
+// ---------------- about / self-check page ----------------
+static void drawAbout() {
+  gfx->fillScreen(C_BLACK);
+  gfx->drawCircle(R_CX, R_CY, R_R, C_DKGREEN);
+  useFont(u8g2_font_unifont_t_chinese4);
+  txtC("系统自检", 38, C_YELLOW);
+
+  char l[48];
+  useFont(u8g2_font_helvB08_tr);
+  snprintf(l, sizeof(l), "FW %s", FW_VER);
+  txtAt(l, 34, 62, C_WHITE);
+  snprintf(l, sizeof(l), "MAC %s", WiFi.macAddress().c_str());
+  txtAt(l, 34, 76, C_GRAY);
+  snprintf(l, sizeof(l), "IP %s", WiFi.localIP().toString().c_str());
+  txtAt(l, 34, 90, C_WHITE);
+  int rssi = WiFi.RSSI();
+  snprintf(l, sizeof(l), "WiFi %ddBm", rssi);
+  txtAt(l, 34, 104, (rssi > -70) ? C_GREEN : (rssi > -80 ? C_YELLOW : C_RED));
+  snprintf(l, sizeof(l), "HEAP %uK max %uK",
+           (unsigned)(ESP.getFreeHeap() / 1024),
+           (unsigned)(ESP.getMaxAllocHeap() / 1024));
+  txtAt(l, 34, 118, C_CYAN);
+  unsigned long up = millis() / 1000;
+  snprintf(l, sizeof(l), "UP %luh%02lum", up / 3600, (up / 60) % 60);
+  txtAt(l, 34, 132, C_WHITE);
+  snprintf(l, sizeof(l), "OM %lums RAIN %lums", s_metCostMs, s_rainCostMs);
+  txtAt(l, 34, 146, C_GRAY);
+  snprintf(l, sizeof(l), "SRC %s frames %d", s_rainSrc ? "SAT" : "RADAR", s_frameN);
+  txtAt(l, 34, 160, C_ORANGE);
+  snprintf(l, sizeof(l), "WEB %s", WiFi.localIP().toString().c_str());
+  txtAt(l, 34, 174, C_GREEN);
+  useFont(u8g2_font_unifont_t_chinese4);
+  txtC("短按翻页 长按换挡", 194, C_GRAY);
+}
+
 // ---------------- page entry ----------------
 static void enterPage(int page) {
   s_screen = page;
+  s_pageEnterMs = millis();
   if (page == SCR_CLOCK) {
     renderClock();
   } else if (page == SCR_PLANES) {
+    s_sweepMs = millis();
     drawPlanes(s_sweep);
   } else if (page == SCR_FORECAST) {
     renderForecast();
   } else if (page == SCR_RAIN) {
     rainRefresh();
+  } else if (page == SCR_ABOUT) {
+    drawAbout();
   }
   // Drop any press edge that accumulated while the (possibly blocking) page built.
   buttonResync();
@@ -50,7 +89,7 @@ static void handleButton() {
         // This release belongs to a long-press: swallow it, no page change.
         s_suppressRelease = false;
       } else if (!s_longFired) {
-        int next = (s_screen + 1) % 4;
+        int next = (s_screen + 1) % SCR_N;
         Serial.printf("[key] short -> page %d\n", next);
         enterPage(next);
       }
@@ -73,6 +112,7 @@ static void tickClock() {
   getLocalTime(&s_tm, 100);
   if (s_tm.tm_sec != s_lastSec) {
     s_lastSec = s_tm.tm_sec;
+    ensureAstro();
     updateClockHands();
   }
 }
@@ -89,9 +129,12 @@ static void tickPlanes(unsigned long now) {
     s_sweep += 6;
     if (s_sweep >= 360) s_sweep -= 360;
     drawWedge(s_sweep, false);
-    drawCardinals(); // repaint the compass letters the sweep just covered
+    drawCardinalsNear(s_sweep);
   }
-  if (now - s_planeMs >= 60000 || s_planeCount == 0) {
+  // Hold the network fetch back for the first seconds after entering the page:
+  // a TLS request used to land while the sweep had just started, freezing it
+  // exactly when the stutter was most visible.
+  if (now - s_planeMs >= 60000 && now - s_pageEnterMs >= 10000) {
     if (fetchPlanes()) drawRadarBase();
   }
 }
@@ -108,6 +151,8 @@ static void tickRain(unsigned long now) {
       (s_rainOk && now - s_rainMs >= 360000)) {
     s_rainTryMs = now;
     rainRefresh();
+  } else {
+    rainAnimTick(now);
   }
 }
 
@@ -126,6 +171,14 @@ void setup() {
   gfx->setUTF8Print(true);
   gfx->fillScreen(C_BLACK);
 
+  // Frame cache for the rain animation lives in the spare spiffs partition.
+  s_fsOk = SPIFFS.begin(false);
+  if (!s_fsOk) s_fsOk = SPIFFS.begin(true);
+  if (s_fsOk) Serial.printf("[fs] %u/%u bytes used\n",
+                            (unsigned)SPIFFS.usedBytes(),
+                            (unsigned)SPIFFS.totalBytes());
+  else Serial.println("[fs] mount failed, rain page falls back to one frame");
+
   // PNG buffer is no longer held permanently; it is allocated on demand.
   s_prefs.begin("radar", false);
   int ver = s_prefs.getInt("ver", 0);
@@ -135,16 +188,19 @@ void setup() {
   s_lat = s_prefs.getFloat("lat", HOME_LAT);
   s_lon = s_prefs.getFloat("lon", HOME_LON);
   s_city = s_prefs.getString("city", HOME_CITY);
+  s_rainSrc = s_prefs.getInt("rsrc", 0);
 
-  // Migration from older config: keep WiFi credentials, but force the home
-  // location to Nankang and switch to manual so the wrong IP result is dropped.
-  if (ver != CFG_VER) {
+  // One-time migration for the configs that still used the wrong IP location.
+  // Anything already on 106+ keeps whatever the user set in the web page.
+  if (ver < 106) {
     s_manual = true;
     s_lat = HOME_LAT;
     s_lon = HOME_LON;
     s_city = HOME_CITY;
     saveCfg();
     Serial.printf("[cfg] migrate %d->%d home=%s\n", ver, CFG_VER, s_city.c_str());
+  } else if (ver != CFG_VER) {
+    s_prefs.putInt("ver", CFG_VER);
   }
   // Valid as long as WiFi credentials exist; version mismatch is migrated above.
   s_cfgValid = (s_ssid.length() > 0);
@@ -171,6 +227,7 @@ void setup() {
   }
   Serial.printf("[wifi] %s rssi=%d\n", WiFi.localIP().toString().c_str(),
                 WiFi.RSSI());
+  startWeb();
 
   if (s_manual) {
     Serial.printf("[loc] manual home %s %.4f %.4f (skip IP)\n",
@@ -191,11 +248,13 @@ void setup() {
 void loop() {
   unsigned long now = millis();
   handleButton();
+  webLoop();
   switch (s_screen) {
     case SCR_CLOCK: tickClock(); break;
     case SCR_PLANES: tickPlanes(now); break;
     case SCR_FORECAST: tickForecast(now); break;
     case SCR_RAIN: tickRain(now); break;
+    case SCR_ABOUT: break;
   }
   delay(20);
 }
