@@ -1,4 +1,18 @@
 // ---------------- rain png ----------------
+// RainViewer encodes echo intensity in the alpha channel (light rain ~30-60,
+// heavy ~150+). Copying the raw RGB ignored that, so weak echoes landed as pale
+// smudges on the map and the page looked empty. Map alpha to a real colour
+// ladder instead, the way the reference screenshot looks.
+static uint16_t rainColor(uint8_t a) {
+  if (a < 10) return C_BLACK; // caller treats this as transparent
+  if (a < 32) return 0x0320;  // very light: dark green
+  if (a < 60) return C_GREEN; // light
+  if (a < 90) return C_YELLOW;
+  if (a < 125) return C_ORANGE;
+  if (a < 170) return C_RED;
+  return C_MAGENTA; // extreme core
+}
+
 static void pngRow(PNGDRAW *pDraw) {
   s_wxRows++;
   int ty = pDraw->y + s_tileDy;
@@ -24,17 +38,19 @@ static void pngRow(PNGDRAW *pDraw) {
     bool trans = false;
     if (iPixelType == PNG_PIXEL_TRUECOLOR_ALPHA) {
       uint8_t a = px[i * 4 + 3];
-      if (a < 30) trans = true;
+      if (a < 10) trans = true;
+      else if (s_pngMode == 1) col = rainColor(a);
       else col = (uint16_t)(((px[i * 4] & 0xF8) << 8) |
-                           ((px[i * 4 + 1] & 0xFC) << 3) | (px[i * 4 + 2] >> 3));
-      if (s_pngMode == 1 && a >= 30 && inCircle) s_rainPx++;
+                            ((px[i * 4 + 1] & 0xFC) << 3) | (px[i * 4 + 2] >> 3));
+      if (s_pngMode == 1 && !trans && inCircle) s_rainPx++;
     } else if (iPixelType == PNG_PIXEL_TRUECOLOR) {
       col = (uint16_t)(((px[i * 3] & 0xF8) << 8) |
                        ((px[i * 3 + 1] & 0xFC) << 3) | (px[i * 3 + 2] >> 3));
     } else if (iPixelType == PNG_PIXEL_INDEXED) {
       uint8_t idx = px[i];
       uint8_t a = pDraw->pPalette[768 + idx]; // tRNS alpha, default 255
-      if (idx == 0 || a < 30) trans = true;
+      if (idx == 0 || a < 10) trans = true;
+      else if (s_pngMode == 1) col = rainColor(a);
       else {
         uint8_t r = pDraw->pPalette[idx * 3];
         uint8_t g = pDraw->pPalette[idx * 3 + 1];
