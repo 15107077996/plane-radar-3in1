@@ -55,8 +55,13 @@
 #define C_DKBLUE 0x0210
 
 // ---------------- version ----------------
-#define FW_VER "1.2.3-c3"
-#define CFG_VER 105
+#define FW_VER "1.2.4-c3"
+#define CFG_VER 106
+// Manual home location: Ganzhou Nankang District (district govt 25.6614N 114.7650E).
+// IP geolocation on this network wrongly resolves to Beijing, so manual mode is default.
+#define HOME_LAT 25.6614f
+#define HOME_LON 114.7650f
+#define HOME_CITY "南康区"
 #define WX_ZOOM 7
 #define FETCH_NM 250.0
 #define MAX_PLANES 40
@@ -81,9 +86,10 @@ static PNG s_png;
 static Preferences s_prefs;
 static String s_ssid;
 static String s_pass;
-static String s_city = "Guangzhou";
-static float s_lat = 23.3924f;
-static float s_lon = 113.2988f;
+static String s_city = HOME_CITY;
+static float s_lat = HOME_LAT;
+static float s_lon = HOME_LON;
+static bool s_manual = true;   // true = fixed home location, skip IP locate
 static bool s_cfgValid = false;
 static WebServer *s_srv = nullptr;
 
@@ -150,3 +156,4 @@ static void buttonResync();
 static bool fetchOpenMeteo();
 static void drawWxIcon(int cx, int cy, int code, int s);
 static const char *wmoZh(int code);
+
