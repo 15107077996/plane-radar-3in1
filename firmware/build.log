@@ -108,6 +108,33 @@ Merged 1 ELF section
 Successfully created esp32c3 image.
 Compiling .pio/build/esp32c3/liba33/Wire/Wire.cpp.o
 Compiling .pio/build/esp32c3/lib260/U8g2/U8g2lib.cpp.o
+src/main.cpp:916:4: error: stray '\345' in program
+    少年宫
+    ^
+src/main.cpp:916:5: error: stray '\260' in program
+    少年宫
+     ^
+src/main.cpp:916:6: error: stray '\221' in program
+    少年宫
+      ^
+src/main.cpp:916:7: error: stray '\345' in program
+    少年宫
+       ^
+src/main.cpp:916:8: error: stray '\271' in program
+    少年宫
+        ^
+src/main.cpp:916:9: error: stray '\264' in program
+    少年宫
+         ^
+src/main.cpp:916:10: error: stray '\345' in program
+    少年宫
+          ^
+src/main.cpp:916:11: error: stray '\256' in program
+    少年宫
+           ^
+src/main.cpp:916:12: error: stray '\253' in program
+    少年宫
+            ^
 Archiving .pio/build/esp32c3/lib30b/libSPI.a
 Indexing .pio/build/esp32c3/lib30b/libSPI.a
 Compiling .pio/build/esp32c3/lib260/U8g2/U8x8lib.cpp.o
@@ -126,69 +153,54 @@ Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_d_memory.c.o
 Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_d_setup.c.o
 Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_font.c.o
 Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_fonts.c.o
-src/main.cpp: In function 'void drawRings()':
-src/main.cpp:614:56: error: no matching function for call to 'Arduino_GFX::drawLine(int, int, int, int)'
-   gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, C_DKGREEN);
-                                                        ^
-In file included from .pio/libdeps/esp32c3/GFX Library for Arduino/src/Arduino_GFX_Library.h:42,
-                 from src/main.cpp:6:
-.pio/libdeps/esp32c3/GFX Library for Arduino/src/Arduino_GFX.h:209:8: note: candidate: 'void Arduino_GFX::drawLine(int16_t, int16_t, int16_t, int16_t, uint16_t)'
-   void drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color);
-        ^~~~~~~~
-.pio/libdeps/esp32c3/GFX Library for Arduino/src/Arduino_GFX.h:209:8: note:   candidate expects 5 arguments, 4 provided
-src/main.cpp: In function 'void renderForecast()':
-src/main.cpp:854:23: error: invalid conversion from 'int*' to 'int' [-fpermissive]
-     txtAt(DL[i], colX - w / 2, 90, C_CYAN);
-                  ~~~~~^~~~~~~
-src/main.cpp:163:38: note:   initializing argument 2 of 'void txtAt(const char*, int, int, uint16_t)'
- static void txtAt(const char *s, int x, int y, uint16_t c) {
-                                  ~~~~^
-src/main.cpp:863:22: error: invalid conversion from 'int*' to 'int' [-fpermissive]
-       txtAt(tt, colX - w / 2, 132, C_WHITE);
-                 ~~~~~^~~~~~~
-src/main.cpp:163:38: note:   initializing argument 2 of 'void txtAt(const char*, int, int, uint16_t)'
- static void txtAt(const char *s, int x, int y, uint16_t c) {
-                                  ~~~~^
-src/main.cpp:866:41: error: invalid conversion from 'int*' to 'int' [-fpermissive]
-       txtAt(wmoZh(s_days[i].code), colX - zw / 2, 150, C_GREEN);
-                                    ~~~~~^~~~~~~~
-src/main.cpp:163:38: note:   initializing argument 2 of 'void txtAt(const char*, int, int, uint16_t)'
- static void txtAt(const char *s, int x, int y, uint16_t c) {
-                                  ~~~~^
+src/main.cpp: In function 'bool fetchPlanes()':
+src/main.cpp:562:5: error: 'SerialPrintf' was not declared in this scope
+     SerialPrintf("[planes] http %d\n", code);
+     ^~~~~~~~~~~~
+src/main.cpp:562:5: note: suggested alternative: 'Serial1'
+     SerialPrintf("[planes] http %d\n", code);
+     ^~~~~~~~~~~~
+     Serial1
+src/main.cpp: In function 'void drawHands(int, int, int)':
+src/main.cpp:743:17: error: expected primary-expression before 'int'
+   gfx->drawLine(int)(sin(aS) * 84), sy = R_CY - (int)(cos(aS) * 84);
+                 ^~~
+src/main.cpp:743:37: error: 'sy' was not declared in this scope
+   gfx->drawLine(int)(sin(aS) * 84), sy = R_CY - (int)(cos(aS) * 84);
+                                     ^~
+src/main.cpp:743:37: note: suggested alternative: 'my'
+   gfx->drawLine(int)(sin(aS) * 84), sy = R_CY - (int)(cos(aS) * 84);
+                                     ^~
+                                     my
+src/main.cpp:744:29: error: 'sx' was not declared in this scope
+   gfx->drawLine(R_CX, R_CY, sx, sy, C_RED);
+                             ^~
+src/main.cpp:744:29: note: suggested alternative: 'mx'
+   gfx->drawLine(R_CX, R_CY, sx, sy, C_RED);
+                             ^~
+                             mx
 src/main.cpp: In function 'void pngRow(PNGDRAW*)':
-src/main.cpp:944:47: error: 'g' was not declared in this scope
-       col = (uint16_t)(((g8 & 0xF8) << 8) | ((g & 0xFC) << 3) | (g8 >> 3));
-                                               ^
-src/main.cpp:944:47: note: suggested alternative: 'g8'
-       col = (uint16_t)(((g8 & 0xF8) << 8) | ((g & 0xFC) << 3) | (g8 >> 3));
-                                               ^
-                                               g8
-src/main.cpp: In function 'bool downloadToBuf(const char*)':
-src/main.cpp:992:49: error: use of deleted function 'HTTPClient::HTTPClient(const HTTPClient&)'
-     Serial.printf("[dl] %s http=%d\n", url, http);
-                                                 ^
-In file included from src/main.cpp:4:
-/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h:172:7: note: 'HTTPClient::HTTPClient(const HTTPClient&)' is implicitly deleted because the default definition would be ill-formed:
- class HTTPClient
-       ^~~~~~~~~~
-/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h:172:7: error: use of deleted function 'std::unique_ptr<_Tp, _Dp>::unique_ptr(const std::unique_ptr<_Tp, _Dp>&) [with _Tp = TransportTraits; _Dp = std::default_delete<TransportTraits>]'
-In file included from /home/runner/.platformio/packages/toolchain-riscv32-esp/riscv32-esp-elf/include/c++/8.4.0/memory:80,
-                 from /home/runner/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFiClient.h:26,
-                 from /home/runner/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFi.h:37,
-                 from src/main.cpp:2:
-/home/runner/.platformio/packages/toolchain-riscv32-esp/riscv32-esp-elf/include/c++/8.4.0/bits/unique_ptr.h:397:7: note: declared here
-       unique_ptr(const unique_ptr&) = delete;
-       ^~~~~~~~~~
-In file included from src/main.cpp:4:
-/home/runner/.platformio/packages/framework-arduinoespressif32/libraries/HTTPClient/src/HTTPClient.h:172:7: error: use of deleted function 'std::unique_ptr<_Tp, _Dp>::unique_ptr(const std::unique_ptr<_Tp, _Dp>&) [with _Tp = WiFiClient; _Dp = std::default_delete<WiFiClient>]'
- class HTTPClient
-       ^~~~~~~~~~
-In file included from /home/runner/.platformio/packages/toolchain-riscv32-esp/riscv32-esp-elf/include/c++/8.4.0/memory:80,
-                 from /home/runner/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFiClient.h:26,
-                 from /home/runner/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src/WiFi.h:37,
-                 from src/main.cpp:2:
-/home/runner/.platformio/packages/toolchain-riscv32-esp/riscv32-esp-elf/include/c++/8.4.0/bits/unique_ptr.h:397:7: note: declared here
-       unique_ptr(const unique_ptr&) = delete;
-       ^~~~~~~~~~
+src/main.cpp:929:30: error: 'PNG_PIXEL' was not declared in this scope
+     } else if (iPixelType == PNG_PIXEL) {
+                              ^~~~~~~~~
+src/main.cpp:929:30: note: suggested alternative: 'PNGFILE'
+     } else if (iPixelType == PNG_PIXEL) {
+                              ^~~~~~~~~
+                              PNGFILE
+src/main.cpp: In function 'void tickRain(long unsigned int)':
+src/main.cpp:1185:48: error: expected ')' before '{' token
+   if ((!s_rainOk && now - s_rainTryMs >= 30000) {
+      ~                                         ^~
+                                                )
+src/main.cpp:1189:1: error: expected primary-expression before '}' token
+ }
+ ^
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_hvline.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_input_value.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_intersection.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_kerning.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_line.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_ll_hvline.c.o
+Compiling .pio/build/esp32c3/lib260/U8g2/clib/u8g2_message.c.o
 *** [.pio/build/esp32c3/src/main.cpp.o] Error 1
-========================= [FAILED] Took 53.84 seconds =========================
+========================= [FAILED] Took 55.00 seconds =========================
