@@ -242,18 +242,31 @@ static bool allFramesPresent() {
   return true;
 }
 
+// Cache signature = frame paths + the tile coordinates they were cut for. The
+// tile part matters: after a city change the same slot files would otherwise be
+// painted at the wrong place and the map would show another region's rain.
+static String frameSig() {
+  String s = "";
+  for (int i = 0; i < s_frameN; i++) { s += s_framePath[i]; s += "|"; }
+  s += "@";
+  for (int i = 0; i < s_tileN; i++) {
+    char t[16];
+    snprintf(t, sizeof(t), "%d,%d;", s_tiles[i].tx, s_tiles[i].ty);
+    s += t;
+  }
+  return s;
+}
+
 // RainViewer publishes a new frame every 10 min, so a 6-min refresh usually
 // reuses exactly the same three images. Remembering the frame list in flash
-// turns that refresh into a pure redraw (~2s instead of ~10s over HTTP).
+// turns that refresh into a pure redraw (~1s instead of ~10s over HTTP).
 static bool framesCached() {
   if (!s_fsOk || s_frameN <= 0) return false;
   File f = SPIFFS.open("/rpath.txt", "r");
   if (!f) return false;
   String old = f.readString();
   f.close();
-  String cur = "";
-  for (int i = 0; i < s_frameN; i++) { cur += s_framePath[i]; cur += "|"; }
-  if (old != cur) return false;
+  if (old != frameSig()) return false;
   return allFramesPresent();
 }
 
@@ -261,8 +274,94 @@ static void saveFrameSig() {
   if (!s_fsOk) return;
   File f = SPIFFS.open("/rpath.txt", "w");
   if (!f) return;
-  for (int i = 0; i < s_frameN; i++) { f.print(s_framePath[i]); f.print("|"); }
+  f.print(frameSig());
   f.close();
+}
+
+static bool s_reuseFr[RAIN_FRAMES];
+static int s_reuseFrom[RAIN_FRAMES];
+
+// New frame list normally slides by one: {t-20,t-10,t} becomes {t-10,t,t+10}.
+// Two of the three images are already on flash, so rename their slots instead of
+// downloading them again -- a refresh that lands on a brand new frame then costs
+// one tile pair (~2s) rather than eight requests (~16s).
+static bool shiftFrames() {
+  if (!s_fsOk || s_frameN <= 0 || s_tileN <= 0) return false;
+  for (int i = 0; i < RAIN_FRAMES; i++) { s_reuseFr[i] = false; s_reuseFrom[i] = -1; }
+  File f = SPIFFS.open("/rpath.txt", "r");
+  if (!f) return false;
+  String old = f.readString();
+  f.close();
+  int sep = old.indexOf('@');
+  if (sep < 0) return false;
+  String oldTiles = old.substring(sep + 1);
+  String curTiles = "";
+  for (int i = 0; i < s_tileN; i++) {
+    char t[16];
+    snprintf(t, sizeof(t), "%d,%d;", s_tiles[i].tx, s_tiles[i].ty);
+    curTiles += t;
+  }
+  if (oldTiles != curTiles) return false; // city/tile changed: nothing to reuse
+  String oldPath[RAIN_FRAMES];
+  int oldN = 0;
+  int p = 0;
+  while (oldN < RAIN_FRAMES) {
+    int q = old.indexOf('|', p);
+    if (q < 0 || q > sep) break;
+    oldPath[oldN++] = old.substring(p, q);
+    p = q + 1;
+  }
+  if (oldN <= 0) return false;
+
+  int reuseN = 0;
+  for (int j = 0; j < s_frameN; j++) {
+    for (int k = 0; k < oldN; k++) {
+      if (oldPath[k] != s_framePath[j]) continue;
+      bool have = true;
+      for (int i = 0; i < s_tileN; i++) {
+        char pth[16];
+        snprintf(pth, sizeof(pth), "/r%d_%d.png", k, i);
+        if (cachedSize(pth) < 100) { have = false; break; }
+      }
+      if (!have) continue;
+      s_reuseFr[j] = true;
+      s_reuseFrom[j] = k;
+      reuseN++;
+      break;
+    }
+  }
+  if (reuseN <= 0) return false;
+
+  // Two passes through temp names: moving slot k down into slot j would
+  // otherwise overwrite the very file the next frame still needs.
+  for (int j = 0; j < s_frameN; j++) {
+    if (!s_reuseFr[j]) continue;
+    for (int i = 0; i < s_tileN; i++) {
+      char a[16], b[16];
+      snprintf(a, sizeof(a), "/r%d_%d.png", s_reuseFrom[j], i);
+      snprintf(b, sizeof(b), "/tm%d_%d.png", s_reuseFrom[j], i);
+      SPIFFS.remove(b);
+      SPIFFS.rename(a, b);
+    }
+  }
+  for (int j = 0; j < s_frameN; j++) {
+    for (int i = 0; i < s_tileN; i++) {
+      char pth[16];
+      snprintf(pth, sizeof(pth), "/r%d_%d.png", j, i);
+      if (s_reuseFr[j]) {
+        char b[16];
+        snprintf(b, sizeof(b), "/tm%d_%d.png", s_reuseFrom[j], i);
+        SPIFFS.remove(pth);
+        SPIFFS.rename(b, pth);
+      } else if (s_reuseFrom[j] < 0) {
+        // slot holds a frame that is no longer in the list: drop it, or the
+        // "all frames present" check would vouch for a stale image
+        SPIFFS.remove(pth);
+      }
+    }
+  }
+  Serial.printf("[rain] shift reuse=%d/%d\n", reuseN, s_frameN);
+  return true;
 }
 
 static bool rainRefresh() {
@@ -272,6 +371,7 @@ static bool rainRefresh() {
   s_frameN = 0;
   s_rainPx = 0;
   s_rainPxMax = 0;
+  for (int i = 0; i < RAIN_FRAMES; i++) { s_reuseFr[i] = false; s_reuseFrom[i] = -1; }
   // Sanity check before touching the network: the smallest tile needs this much.
   if (ESP.getMaxAllocHeap() < PNG_BUF_MIN) {
     Serial.printf("[mem] low heap free=%u maxblk=%u\n", ESP.getFreeHeap(),
@@ -362,7 +462,14 @@ static bool rainRefresh() {
   bool single = (!s_fsOk || s_frameN < 2);
 
   // Everything already on flash and the frame list unchanged: just redraw.
-  if (!single && framesCached()) {
+  // Otherwise try the slide-by-one reuse before touching the network.
+  bool cached = (!single && framesCached());
+  int shifted = 0;
+  if (!single && !cached && shiftFrames()) {
+    shifted = 1;
+    cached = allFramesPresent();
+  }
+  if (cached) {
     s_animReady = true;
     s_animFrame = s_frameN - 1;
     gfx->fillScreen(C_BLACK);
@@ -372,10 +479,11 @@ static bool rainRefresh() {
       s_animMs = millis();
       s_rainOk = true;
       s_rainPxMax = s_rainPx;
+      saveFrameSig();
       releasePngBuf();
       s_rainCostMs = millis() - t0;
-      Serial.printf("[rain] reuse frames cover=%d%% cost=%lums\n",
-                    s_rainPxMax * 100 / 39408, s_rainCostMs);
+      Serial.printf("[rain] reuse frames cover=%d%% cost=%lums shifted=%d\n",
+                    s_rainPxMax * 100 / 39408, s_rainCostMs, shifted);
       return true;
     }
   }
@@ -427,15 +535,19 @@ static bool rainRefresh() {
     for (int k = 0; k < s_frameN; k++) {
       int f = s_frameN - 1 - k;
       bool any = false;
-      for (int i = 0; i < s_tileN; i++) {
-        s_tileDx = s_tiles[i].dx;
-        s_tileDy = s_tiles[i].dy;
-        rainTileUrl(url, sizeof(url), s_framePath[f], s_tiles[i].tx, s_tiles[i].ty);
-        if (!downloadToBuf(url)) continue;
-        char p[16];
-        snprintf(p, sizeof(p), "/r%d_%d.png", f, i);
-        fsSave(p, s_pngLen);
-        any = true;
+      if (s_reuseFr[f]) {
+        any = true; // shifted slot: the PNG is already on flash
+      } else {
+        for (int i = 0; i < s_tileN; i++) {
+          s_tileDx = s_tiles[i].dx;
+          s_tileDy = s_tiles[i].dy;
+          rainTileUrl(url, sizeof(url), s_framePath[f], s_tiles[i].tx, s_tiles[i].ty);
+          if (!downloadToBuf(url)) continue;
+          char p[16];
+          snprintf(p, sizeof(p), "/r%d_%d.png", f, i);
+          fsSave(p, s_pngLen);
+          any = true;
+        }
       }
       if (any) rainOk = true;
       if (f == s_frameN - 1 && any) {

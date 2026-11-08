@@ -12,14 +12,20 @@ Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
 Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
 Platform Manager: espressif32@6.12.0 has been installed!
 Tool Manager: Installing espressif/toolchain-riscv32-esp @ 8.4.0+2021r2-patch5
+Tool Manager: Warning! Package Mirror: Got the unrecognized status code '504' when downloaded https://github.com/ivankravets/pioreg-ci-mirror/releases/download/toolchain-riscv32-esp-linux_x86_64/3ab0f76-toolchain-riscv32-esp-linux_x86_64-8.4.0+2021r2-patch5.tar.gz
+Tool Manager: Looking for another mirror...
 Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
 Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
 Tool Manager: toolchain-riscv32-esp@8.4.0+2021r2-patch5 has been installed!
 Tool Manager: Installing platformio/framework-arduinoespressif32 @ ~3.20017.0
+Tool Manager: Warning! Package Mirror: Got the unrecognized status code '504' when downloaded https://github.com/ivankravets/pioreg-ci-mirror/releases/download/framework-arduinoespressif32/7d2765c-framework-arduinoespressif32-3.20017.241212+sha.dcc1105b.tar.gz
+Tool Manager: Looking for another mirror...
 Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
 Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
 Tool Manager: framework-arduinoespressif32@3.20017.241212+sha.dcc1105b has been installed!
 Tool Manager: Installing platformio/tool-esptoolpy @ ~2.40900.0
+Tool Manager: Warning! Package Mirror: Got the unrecognized status code '504' when downloaded https://github.com/ivankravets/pioreg-ci-mirror/releases/download/tool-esptoolpy/4255102-tool-esptoolpy-2.40900.250804.tar.gz
+Tool Manager: Looking for another mirror...
 Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
 Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
 Collecting cryptography~=45.0.3
@@ -41,7 +47,7 @@ Collecting bitarray<4.0,>=3.0.0 (from bitstring~=4.3.1)
 Collecting pycparser (from cffi>=1.14->cryptography~=45.0.3)
   Using cached pycparser-3.12-py3-none-any.whl.metadata (9.7 kB)
 Downloading cryptography-45.0.7-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 102.6 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 105.0 MB/s  0:00:00
 Downloading ecdsa-0.19.2-py2.py3-none-any.whl (150 kB)
 Downloading bitstring-4.3.1-py3-none-any.whl (71 kB)
 Using cached reedsolo-1.7.0-py3-none-any.whl (32 kB)
@@ -55,6 +61,8 @@ Installing collected packages: reedsolo, intelhex, six, pycparser, bitarray, ecd
 Successfully installed bitarray-3.12.3 bitstring-4.3.1 cffi-2.1.1 cryptography-45.0.7 ecdsa-0.19.2 intelhex-2.3.0 pycparser-3.12 reedsolo-1.7.0 six-1.17.0
 Tool Manager: tool-esptoolpy@2.40900.250804 has been installed!
 Tool Manager: Installing platformio/tool-scons @ ~4.41101.0
+Tool Manager: Warning! Package Mirror: Got the unrecognized status code '504' when downloaded https://github.com/ivankravets/pioreg-ci-mirror/releases/download/tool-scons/14073c2-tool-scons-4.41101.0.tar.gz
+Tool Manager: Looking for another mirror...
 Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
 Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
 Tool Manager: tool-scons@4.41101.0 has been installed!
@@ -348,54 +356,54 @@ Compiling .pio/build/esp32c3/lib062/PNGdec/inflate.c.o
 Compiling .pio/build/esp32c3/lib062/PNGdec/inftrees.c.o
 Compiling .pio/build/esp32c3/lib062/PNGdec/zutil.c.o
 Compiling .pio/build/esp32c3/lib989/WiFi/WiFi.cpp.o
-Compiling .pio/build/esp32c3/lib989/WiFi/WiFiAP.cpp.o
 Archiving .pio/build/esp32c3/lib062/libPNGdec.a
 Indexing .pio/build/esp32c3/lib062/libPNGdec.a
+Compiling .pio/build/esp32c3/lib989/WiFi/WiFiAP.cpp.o
 Compiling .pio/build/esp32c3/lib989/WiFi/WiFiClient.cpp.o
-Archiving .pio/build/esp32c3/libb29/libGFX Library for Arduino.a
 Compiling .pio/build/esp32c3/lib989/WiFi/WiFiGeneric.cpp.o
 Compiling .pio/build/esp32c3/lib989/WiFi/WiFiMulti.cpp.o
-Indexing .pio/build/esp32c3/libb29/libGFX Library for Arduino.a
 Compiling .pio/build/esp32c3/lib989/WiFi/WiFiSTA.cpp.o
+Archiving .pio/build/esp32c3/libb29/libGFX Library for Arduino.a
 Compiling .pio/build/esp32c3/lib989/WiFi/WiFiScan.cpp.o
 Compiling .pio/build/esp32c3/lib989/WiFi/WiFiServer.cpp.o
 Compiling .pio/build/esp32c3/lib989/WiFi/WiFiUdp.cpp.o
 Compiling .pio/build/esp32c3/lib552/WiFiClientSecure/WiFiClientSecure.cpp.o
 Compiling .pio/build/esp32c3/lib552/WiFiClientSecure/esp_crt_bundle.c.o
-Compiling .pio/build/esp32c3/lib552/WiFiClientSecure/ssl_client.cpp.o
-Compiling .pio/build/esp32c3/lib67b/HTTPClient/HTTPClient.cpp.o
 Archiving .pio/build/esp32c3/lib989/libWiFi.a
+Compiling .pio/build/esp32c3/lib552/WiFiClientSecure/ssl_client.cpp.o
 Indexing .pio/build/esp32c3/lib989/libWiFi.a
+Compiling .pio/build/esp32c3/lib67b/HTTPClient/HTTPClient.cpp.o
 Compiling .pio/build/esp32c3/libe70/Preferences/Preferences.cpp.o
-Compiling .pio/build/esp32c3/lib7aa/FS/FS.cpp.o
 Archiving .pio/build/esp32c3/lib552/libWiFiClientSecure.a
 Indexing .pio/build/esp32c3/lib552/libWiFiClientSecure.a
-Compiling .pio/build/esp32c3/lib7aa/FS/vfs_api.cpp.o
+Indexing .pio/build/esp32c3/libb29/libGFX Library for Arduino.a
+Compiling .pio/build/esp32c3/lib7aa/FS/FS.cpp.o
 Archiving .pio/build/esp32c3/libe70/libPreferences.a
 Indexing .pio/build/esp32c3/libe70/libPreferences.a
-Compiling .pio/build/esp32c3/lib864/SPIFFS/SPIFFS.cpp.o
-Compiling .pio/build/esp32c3/lib4b6/Update/HttpsOTAUpdate.cpp.o
+Compiling .pio/build/esp32c3/lib7aa/FS/vfs_api.cpp.o
 Archiving .pio/build/esp32c3/lib67b/libHTTPClient.a
 Indexing .pio/build/esp32c3/lib67b/libHTTPClient.a
-Compiling .pio/build/esp32c3/lib4b6/Update/Updater.cpp.o
+Compiling .pio/build/esp32c3/lib864/SPIFFS/SPIFFS.cpp.o
+Compiling .pio/build/esp32c3/lib4b6/Update/HttpsOTAUpdate.cpp.o
 Archiving .pio/build/esp32c3/lib7aa/libFS.a
 Indexing .pio/build/esp32c3/lib7aa/libFS.a
+Compiling .pio/build/esp32c3/lib4b6/Update/Updater.cpp.o
 Compiling .pio/build/esp32c3/lib1ce/WebServer/Parsing.cpp.o
-Compiling .pio/build/esp32c3/lib1ce/WebServer/WebServer.cpp.o
 Archiving .pio/build/esp32c3/lib864/libSPIFFS.a
 Indexing .pio/build/esp32c3/lib864/libSPIFFS.a
-Compiling .pio/build/esp32c3/lib1ce/WebServer/detail/mimetable.cpp.o
-Compiling .pio/build/esp32c3/FrameworkArduino/Esp.cpp.o
+Compiling .pio/build/esp32c3/lib1ce/WebServer/WebServer.cpp.o
 Archiving .pio/build/esp32c3/lib4b6/libUpdate.a
 Indexing .pio/build/esp32c3/lib4b6/libUpdate.a
+Compiling .pio/build/esp32c3/lib1ce/WebServer/detail/mimetable.cpp.o
+Compiling .pio/build/esp32c3/FrameworkArduino/Esp.cpp.o
 Compiling .pio/build/esp32c3/FrameworkArduino/FirmwareMSC.cpp.o
 Compiling .pio/build/esp32c3/FrameworkArduino/FunctionalInterrupt.cpp.o
+Archiving .pio/build/esp32c3/lib1ce/libWebServer.a
+Indexing .pio/build/esp32c3/lib1ce/libWebServer.a
 Compiling .pio/build/esp32c3/FrameworkArduino/HWCDC.cpp.o
 Compiling .pio/build/esp32c3/FrameworkArduino/HardwareSerial.cpp.o
 Compiling .pio/build/esp32c3/FrameworkArduino/IPAddress.cpp.o
 Compiling .pio/build/esp32c3/FrameworkArduino/IPv6Address.cpp.o
-Archiving .pio/build/esp32c3/lib1ce/libWebServer.a
-Indexing .pio/build/esp32c3/lib1ce/libWebServer.a
 Compiling .pio/build/esp32c3/FrameworkArduino/MD5Builder.cpp.o
 Compiling .pio/build/esp32c3/FrameworkArduino/Print.cpp.o
 Compiling .pio/build/esp32c3/FrameworkArduino/Stream.cpp.o
@@ -441,8 +449,8 @@ Linking .pio/build/esp32c3/firmware.elf
 Retrieving maximum program size .pio/build/esp32c3/firmware.elf
 Checking size .pio/build/esp32c3/firmware.elf
 Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
-RAM:   [===       ]  28.2% (used 92460 bytes from 327680 bytes)
-Flash: [====      ]  44.3% (used 1394214 bytes from 3145728 bytes)
+RAM:   [===       ]  28.2% (used 92516 bytes from 327680 bytes)
+Flash: [====      ]  44.4% (used 1397098 bytes from 3145728 bytes)
 Building .pio/build/esp32c3/firmware.bin with action:
   "$PYTHONEXE" "$OBJCOPY" --chip esp32c3 elf2image --flash_mode ${__get_board_flash_mode(__env__)} --flash_freq ${__get_board_f_image(__env__)} --flash_size 4MB --elf-sha256-offset 0xb0 -o $TARGET $SOURCES
 Building .pio/build/esp32c3/firmware.bin
@@ -450,4 +458,4 @@ esptool.py v4.9.0
 Creating esp32c3 image...
 Merged 2 ELF sections
 Successfully created esp32c3 image.
-======================== [SUCCESS] Took 155.56 seconds ========================
+======================== [SUCCESS] Took 200.53 seconds ========================
