@@ -392,7 +392,7 @@ static void fillCloud(int cx, int cy, int s, uint16_t col) {
 
 static void drawWxIcon(int cx, int cy, int code, int s) {
   int kind = iconKind(code);
-  if (kind == IC_SUN || kind == IC_PART) {
+  if (kind == IC_SUN || kind IC_PART) {
     gfx->fillCircle(cx, cy, s, C_YELLOW);
     for (int a = 0; a < 360; a += 45) {
       float r = a * PI / 180;
@@ -500,7 +500,7 @@ static bool fetchPlanes() {
         pl.alt = p["alt_baro"] | 0;
         pl.head = p["track"] | 0;
         pl.distNm = haversineKm(s_lat, s_lon, pl.lat, pl.lon) / 1.852f;
-  pl.distM = haversineKm(s_lat, s_lon, pl.lat, pl.lon) * 1000.0f;
+        pl.distM = haversineKm(s_lat, s_lon, pl.lat, pl.lon) * 1000.0f;
         pl.bear = bearingTo(s_lat, s_lon, pl.lat, pl.lon);
         n++;
       }
@@ -611,7 +611,7 @@ static void drawPlanes(float sweep) {
     if (lx + lw > 236) lx = 236 - lw;
     int top = y - 14;
     if (top < 10) top = 10;
-    if (top > 196) u; // placeholder
+    if (top > 196) top = 196;
     gfx->drawLine(x, y, lx, top + 12, C_GRAY);
     txtAt(s_planes[pi].call, lx, top, C_WHITE);
     if (s_planes[pi].typ[0]) txtAt(s_planes[pi].typ, lx, top + 10, C_YELLOW);
@@ -777,7 +777,7 @@ static void pngRow(PNGDRAW *pDraw) {
   for (int i = 0; i < w; i++) {
     int tx = i + s_tileDx;
     bool inCircle = false;
-    if (tx >= 0; i++) {
+    if (tx >= 0 && tx < SCR_W) {
       int dx = tx - R_CX;
       if (dx * dx + dy2 <= R_R * R_R) inCircle = true;
     }
@@ -989,7 +989,6 @@ static void handleButton() {
 static void tickClock() {
   if (s_timeOk && s_tm.tm_sec != s_lastSec) {
     s_lastSec = s_tm.tm_sec;
-    s_rainTryMs = 0;
     renderClock();
   }
 }
