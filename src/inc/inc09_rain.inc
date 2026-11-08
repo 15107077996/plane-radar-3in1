@@ -151,11 +151,18 @@ static bool rainRefresh() {
     txtC("云图数据错误", 150, C_RED); releasePngBuf(); return false;
   }
   JsonArray now = doc["radar"]["nowcast"];
-  if (now.isNull() || now.size() == 0) {
-    Serial.println("[rain] no nowcast");
+  JsonArray past = doc["radar"]["past"];
+  if ((now.isNull() || now.size() == 0) && (past.isNull() || past.size() == 0)) {
+    Serial.println("[rain] no frames");
     txtC("暂无云图", 150, C_RED); releasePngBuf(); return false;
   }
-  s_rainPath = (const char *)now[0]["path"];
+  // Prefer the first nowcast frame; if nowcast is empty, use the latest past frame.
+  if (!now.isNull() && now.size() > 0) {
+    s_rainPath = (const char *)now[0]["path"];
+  } else {
+    s_rainPath = (const char *)past[past.size() - 1]["path"];
+    Serial.println("[rain] nowcast empty, use latest past");
+  }
   if (s_rainPath.length() == 0) {
     Serial.println("[rain] no path");
     txtC("暂无云图", 150, C_RED); releasePngBuf(); return false;
