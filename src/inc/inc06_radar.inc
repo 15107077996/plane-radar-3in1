@@ -51,6 +51,16 @@ static void drawRings() {
   (void)R;
 }
 
+// Compass letters inside the sweep circle: 北 above, 南 below, 东 right, 西 left.
+// Placed 66px off centre so they clear both the header text and the 75px ring.
+static void drawCardinals() {
+  useFont(u8g2_font_unifont_t_chinese4);
+  txtC("北", 60, C_WHITE);
+  txtC("南", 192, C_WHITE);
+  txtAt("东", 186, 126, C_WHITE);
+  txtAt("西", 54, 126, C_WHITE);
+}
+
 static void drawMarkers() {
   for (int i = 0; i < s_mappedCnt; i++) {
     int pi = s_mapped[i].i;
@@ -120,6 +130,7 @@ static void drawRadarBase() {
   drawMarkers();
   drawLabels();
   drawWedge(s_sweep, false);
+  drawCardinals();
 }
 
 // Full redraw (page entry / after plane fetch).
@@ -165,4 +176,3 @@ static void drawPlanes_old(float sweep) {
   gfx->fillCircle(R_CX, R_CY, 3, C_WHITE);
 }
 #endif
-
