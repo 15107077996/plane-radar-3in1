@@ -32,14 +32,14 @@
 #define PR_SPI_FREQ 40000000
 #endif
 
-// ---------------- geometry ----------------
+// ---------------- geometry --------------
 #define SCR_W 240
 #define SCR_H 240
 #define R_CX 120
 #define R_CY 120
 #define R_R 112
 
-// ---------------- colors ----------------
+// ---------------- colors --------------
 #define C_BLACK 0x0000
 #define C_WHITE 0xFFFF
 #define C_GREEN 0x07E0
@@ -55,7 +55,7 @@
 #define C_DKBLUE 0x0210
 
 // ---------------- version ----------------
-#define FW_VER "1.2.8-c3"
+#define FW_VER "1.2.9-c3"
 #define CFG_VER 106
 // Manual home location: Ganzhou Nankang District (district govt 25.6614N 114.7650E).
 // IP geolocation on this network wrongly resolves to Beijing, so manual mode is default.
@@ -153,7 +153,7 @@ static String s_rainPath = "";
 static bool s_rainOk = false;
 static unsigned long s_rainTryMs = 0;
 
-// ---------------- forward ----------------
+// ---------------- forward --------------
 static void renderClock();
 static void drawPlanes(float sweep);
 static void drawCardinals();
