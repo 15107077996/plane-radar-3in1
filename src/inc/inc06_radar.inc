@@ -61,6 +61,27 @@ static void drawCardinals() {
   txtAt("西", 54, 126, C_WHITE);
 }
 
+// Is the compass point inside the fan the sweep just repainted? Redrawing all
+// four letters every 100ms cost three pointless unifont blits per tick and made
+// the animation uneven, so only the covered ones are repainted.
+static bool arcCovers(float sweep, float ang) {
+  float d = sweep - ang;
+  while (d < 0) d += 360;
+  while (d >= 360) d -= 360;
+  return d <= 42.0f;
+}
+
+static void drawCardinalsNear(float sweep) {
+  bool n = arcCovers(sweep, 0), s = arcCovers(sweep, 180);
+  bool e = arcCovers(sweep, 90), w = arcCovers(sweep, 270);
+  if (!(n || s || e || w)) return;
+  useFont(u8g2_font_unifont_t_chinese4);
+  if (n) txtC("北", 60, C_WHITE);
+  if (s) txtC("南", 192, C_WHITE);
+  if (e) txtAt("东", 186, 126, C_WHITE);
+  if (w) txtAt("西", 54, 126, C_WHITE);
+}
+
 static void drawMarkers() {
   for (int i = 0; i < s_mappedCnt; i++) {
     int pi = s_mapped[i].i;
@@ -138,41 +159,3 @@ static void drawPlanes(float sweep) {
   (void)sweep;
   drawRadarBase();
 }
-
-#if 0
-// Legacy full-screen redraw kept for reference; compiler ignores this block.
-static void drawPlanes_old(float sweep) {
-  gfx->fillScreen(C_BLACK);
-  gfx->drawCircle(R_CX, R_CY, R_R, C_RED);
-  gfx->drawCircle(R_CX, R_CY, R_R - 3, C_RED);
-  gfx->drawLine(R_CX, R_CY - R_R, R_CX, R_CY + R_R, C_DKGREEN);
-  gfx->drawLine(R_CX - R_R, R_CY, R_CX + R_R, C_DKGREEN);
-  for (int f = 1; f <= 3; f++) {
-    int rr = (int)(R_R * f / 3);
-    gfx->drawCircle(R_CX, R_CY, rr, C_DKGREEN);
-  }
-  float R = rangeKm();
-  int shown = 0;
-  for (int i = 0; i < s_planeCount && shown < MAX_LABELS; i++) {
-    float d = planeDistKm(i);
-    if (d > R) continue;
-    float b = s_planes[i].bear * PI / 180;
-    int rr = (int)(R_R * d / R);
-    int x = R_CX + (int)(sin(b) * rr);
-    int y = R_CY - (int)(cos(b) * rr);
-    drawPlaneMarker(x, y, s_planes[i].head, altColor(s_planes[i].alt));
-    char dm[16];
-    snprintf(dm, sizeof(dm), "%.0fm", s_planes[i].distM);
-    txtAt(s_planes[i].call, x + 6, y - 4, C_WHITE);
-    if (s_planes[i].typ[0]) txtAt(s_planes[i].typ, x + 6, y + 8, C_YELLOW);
-    txtAt(dm, x + 6, y + 20, C_CYAN);
-    shown++;
-  }
-  // sweep line
-  float a = sweep * PI / 180;
-  int x1 = R_CX + (int)(sin(a) * R_R);
-  int y1 = R_CY - (int)(cos(a) * R_R);
-  gfx->drawLine(R_CX, R_CY, x1, y1, C_GREEN);
-  gfx->fillCircle(R_CX, R_CY, 3, C_WHITE);
-}
-#endif
